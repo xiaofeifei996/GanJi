@@ -161,11 +161,7 @@ struct GanJiWidgetView: View {
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
     var body: some WidgetConfiguration {
-        if #available(iOS 17.0, *) {
-            configuration.contentMarginsDisabled()
-        } else {
-            configuration
-        }
+        configuration.contentMarginsDisabled()
     }
     private var configuration: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
