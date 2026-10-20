@@ -172,6 +172,14 @@ struct GanJiWidgetView: View {
         }
     }
 
+    private func dayTitle(_ offset: Int) -> String {
+        switch offset {
+        case 0: return "今天"
+        case 1: return "明天"
+        default: return "后天"
+        }
+    }
+
     private func compactNames(_ offset: Int, limit: Int) -> String {
         let items = entry.sections[offset]
         guard !items.isEmpty else { return "无圩" }
@@ -292,7 +300,7 @@ struct GanJiWidgetView: View {
     private func largeSection(_ offset: Int) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(GanJiStyle.title(for: offset))
+                Text(dayTitle(offset))
                     .font(.system(size: 11.5, weight: .bold))
                     .foregroundColor(Paper.red)
                 Text("\(entry.branchNames[offset])日")
