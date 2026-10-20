@@ -19,7 +19,7 @@ struct ContentView: View {
                     ForEach(rows) { row in
                         MarketCard(row: row, distanceText: distanceText(for: row))
                     }
-                    Text("三日一圩 · \(LunarCalendar.branchName(Date()))日 · v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") · 数据来源：圩日表")
+                    Text("三日一圩 · \(LunarCalendar.ganzhiName(Date()))日 · v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") · 数据来源：圩日表")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                         .padding(.top, 6)
