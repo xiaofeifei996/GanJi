@@ -44,21 +44,33 @@ enum MarketStore {
         return file.markets
     }
 
-    /// 圩组对应的余数（三日一圩：同一组内相邻地支差 3）
-    private static func residue(_ branches: String) -> Int? {
-        guard let first = branches.first,
-              let idx = LunarCalendar.branchIndex(String(first))
-        else { return nil }
-        return idx % 3
+    /// 圩期相位：子午卯酉 = 0，辰戌丑未 = 1，寅申巳亥 = 2
+    /// 显式对照表，不再用取模推导，杜绝偏移
+    private static let phaseTable: [Character: Int] = [
+        "子": 0, "卯": 0, "午": 0, "酉": 0,
+        "辰": 1, "戌": 1, "丑": 1, "未": 1,
+        "寅": 2, "申": 2, "巳": 2, "亥": 2
+    ]
+
+    /// 某个圩所属相位
+    static func phase(ofBranches branches: String) -> Int? {
+        guard let first = branches.first else { return nil }
+        return phaseTable[first]
+    }
+
+    /// 当天相位 —— 与界面头部显示的干支同源，保证两者永远一致
+    static func dayPhase(_ date: Date) -> Int? {
+        guard let first = LunarCalendar.branchName(date).first else { return nil }
+        return phaseTable[first]
     }
 
     /// 从 from 起（含当天）最近一场的间隔天数
     static func daysUntilNext(_ market: Market, from fromDate: Date) -> Int {
-        guard let r = residue(market.branches) else { return -1 }
+        guard let phase = phase(ofBranches: market.branches) else { return -1 }
         let cal = Calendar(identifier: .gregorian)
         for offset in 0..<12 {
             guard let d = cal.date(byAdding: .day, value: offset, to: fromDate) else { continue }
-            if LunarCalendar.branchIndexForDate(d) % 3 == r { return offset }
+            if dayPhase(d) == phase { return offset }
         }
         return -1
     }
