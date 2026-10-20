@@ -104,8 +104,8 @@ enum MarketStore {
         let cal = Calendar(identifier: .gregorian)
         let day = cal.startOfDay(for: date)
         return load().filter { m in
-            guard let r = residue(m.branches) else { return false }
-            return LunarCalendar.branchIndexForDate(day) % 3 == r
+            guard let p = phase(ofBranches: m.branches) else { return false }
+            return dayPhase(day) == p
         }
     }
 
