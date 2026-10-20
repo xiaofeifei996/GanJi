@@ -24,7 +24,7 @@ struct MarketDay: Identifiable {
 
     var id: String { market.id + "-\(daysAhead)" }
     var branches: String { market.branches.map { String($0) }.joined(separator: "·") }
-    var animals: String { market.branches.map { LunarCalendar.zodiacOfBranch($0) }.joined(separator: "·") }
+    var animals: String { market.branches.map { LunarCalendar.zodiacOfBranch(String($0)) }.joined(separator: "·") }
     var dayLabel: String {
         switch daysAhead {
         case 0: return "今天"
