@@ -4,7 +4,7 @@ struct Market: Codable, Identifiable {
     let id: String
     let name: String
     let area: String
-    let group: String      // 属相四字，如 鼠兔马鸡
+    let branches: String   // 地支四字，如 子午卯酉
     let lat: Double
     let lon: Double
     let size: String       // 大集 / 小集
@@ -23,7 +23,8 @@ struct MarketDay: Identifiable {
     let daysAhead: Int     // 0 = 今天
 
     var id: String { market.id + "-\(daysAhead)" }
-    var animals: String { market.group.map { String($0) }.joined(separator: "·") }
+    var branches: String { market.branches.map { String($0) }.joined(separator: "·") }
+    var animals: String { market.branches.map { LunarCalendar.zodiacOfBranch($0) }.joined(separator: "·") }
     var dayLabel: String {
         switch daysAhead {
         case 0: return "今天"
@@ -43,21 +44,21 @@ enum MarketStore {
         return file.markets
     }
 
-    /// 属相组对应的余数（三日一圩：同一组内相邻生肖差 3）
-    private static func residue(_ group: String) -> Int? {
-        guard let first = group.first,
-              let idx = LunarCalendar.zodiac.firstIndex(of: String(first))
+    /// 圩组对应的余数（三日一圩：同一组内相邻地支差 3）
+    private static func residue(_ branches: String) -> Int? {
+        guard let first = branches.first,
+              let idx = LunarCalendar.branchIndex(String(first))
         else { return nil }
         return idx % 3
     }
 
     /// 从 from 起（含当天）最近一场的间隔天数
     static func daysUntilNext(_ market: Market, from fromDate: Date) -> Int {
-        guard let r = residue(market.group) else { return -1 }
+        guard let r = residue(market.branches) else { return -1 }
         let cal = Calendar(identifier: .gregorian)
         for offset in 0..<12 {
             guard let d = cal.date(byAdding: .day, value: offset, to: fromDate) else { continue }
-            if LunarCalendar.zodiacIndex(d) % 3 == r { return offset }
+            if LunarCalendar.branchIndexForDate(d) % 3 == r { return offset }
         }
         return -1
     }
@@ -68,20 +69,22 @@ enum MarketStore {
         return cal.date(byAdding: .day, value: n, to: cal.startOfDay(for: fromDate)) ?? fromDate
     }
 
-    /// 按最近赶集日排序
+    /// 按最近赶集日排序（同日保持数据文件里的顺序）
     static func upcoming(from date: Date) -> [MarketDay] {
         let cal = Calendar(identifier: .gregorian)
         let today = cal.startOfDay(for: date)
         return load()
-            .map { m -> MarketDay in
+            .enumerated()
+            .map { i, m -> (Int, MarketDay) in
                 let n = max(daysUntilNext(m, from: today), 0)
                 let d = cal.date(byAdding: .day, value: n, to: today) ?? today
-                return MarketDay(market: m, date: d, daysAhead: n)
+                return (i, MarketDay(market: m, date: d, daysAhead: n))
             }
             .sorted { a, b in
-                if a.daysAhead != b.daysAhead { return a.daysAhead < b.daysAhead }
-                return a.market.name < b.market.name
+                if a.1.daysAhead != b.1.daysAhead { return a.1.daysAhead < b.1.daysAhead }
+                return a.0 < b.0
             }
+            .map { $0.1 }
     }
 
     /// 某一天赶集的集市（用于小组件按天分栏）
@@ -89,12 +92,12 @@ enum MarketStore {
         let cal = Calendar(identifier: .gregorian)
         let day = cal.startOfDay(for: date)
         return load().filter { m in
-            guard let r = residue(m.group) else { return false }
-            return LunarCalendar.zodiacIndex(day) % 3 == r
+            guard let r = residue(m.branches) else { return false }
+            return LunarCalendar.branchIndexForDate(day) % 3 == r
         }
     }
 
-    /// 距离（公里），无坐标返回 nil
+    /// 距离（公里）
     static func distanceKm(_ market: Market, from lat: Double, lon: Double) -> Double {
         let rad = Double.pi / 180
         let dLat = (market.lat - lat) * rad
