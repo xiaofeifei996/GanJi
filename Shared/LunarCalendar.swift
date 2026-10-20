@@ -2,6 +2,7 @@ import Foundation
 
 /// 农历 / 生肖日换算
 enum LunarCalendar {
+    static let branches = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"]
     static let zodiac = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"]
     static let monthNames = ["正月", "二月", "三月", "四月", "五月", "六月",
                              "七月", "八月", "九月", "十月", "冬月", "腊月"]
@@ -23,6 +24,24 @@ enum LunarCalendar {
 
     static func zodiacName(_ date: Date) -> String {
         zodiac[zodiacIndex(date)]
+    }
+
+    /// 当日地支序号，0 = 子
+    static func branchIndex(_ b: String) -> Int? {
+        branches.firstIndex(of: b)
+    }
+
+    static func branchIndexForDate(_ date: Date) -> Int {
+        zodiacIndex(date)
+    }
+
+    static func branchName(_ date: Date) -> String {
+        branches[zodiacIndex(date)]
+    }
+
+    static func zodiacOfBranch(_ b: String) -> String {
+        guard let i = branches.firstIndex(of: b) else { return "" }
+        return zodiac[i]
     }
 
     /// 农历月日文字，如 “九月十一”
