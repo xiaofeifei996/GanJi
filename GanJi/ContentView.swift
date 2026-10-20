@@ -50,7 +50,7 @@ struct ContentView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("\(LunarCalendar.zodiacName(Date()))日")
+                Text("\(LunarCalendar.branchName(Date()))日 · \(LunarCalendar.zodiacName(Date()))")
                     .font(.system(size: 13, weight: .semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
@@ -108,7 +108,7 @@ struct MarketCard: View {
                         .padding(.vertical, 2)
                         .background(RoundedRectangle(cornerRadius: 4).fill(badgeColor.opacity(0.75)))
                 }
-                Text("\(row.market.area) · 属相 \(row.animals)")
+                Text("\(row.market.area) · \(row.branches)日 · 属相 \(row.animals)")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
