@@ -269,44 +269,18 @@ struct GanJiWidgetView: View {
     private var largeBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             header(titleSize: 13.5)
-            Spacer(minLength: 10)
-            hero(gzSize: 40, subSize: 11)
+            Spacer(minLength: 8)
+            hero(gzSize: 38, subSize: 11)
             DashedRule()
-                .padding(.top, 10)
-                .padding(.bottom, 12)
+                .padding(.top, 9)
+                .padding(.bottom, 10)
 
-            // 今天
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("今天")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Paper.red)
-                    Text("\(entry.branchNames[0])日")
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundColor(Paper.muted)
+            ForEach(0..<3, id: \.self) { offset in
+                if offset > 0 {
+                    DashedRule().padding(.vertical, 9)
                 }
-                if entry.sections[0].isEmpty {
-                    Text("无圩")
-                        .font(.system(size: 16))
-                        .foregroundColor(Paper.muted)
-                } else {
-                    HStack(spacing: 18) {
-                        ForEach(entry.sections[0].prefix(4)) { item in
-                            marketRow(item, size: 19)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-
-            Spacer(minLength: 10)
-            DashedRule()
-                .padding(.bottom, 9)
-
-            // 明天 / 后天
-            VStack(alignment: .leading, spacing: 7) {
-                row(offset: 1)
-                row(offset: 2)
+                largeSection(offset)
+                if offset < 2 { Spacer(minLength: 6) }
             }
             Spacer(minLength: 0)
         }
@@ -315,20 +289,29 @@ struct GanJiWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func row(offset: Int) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 7) {
-            Text(offset == 1 ? "明天" : "后天")
-                .font(.system(size: 11.5, weight: .bold))
-                .foregroundColor(Paper.red)
-            Text("\(entry.branchNames[offset])日")
-                .font(.system(size: 10))
-                .foregroundColor(Paper.muted)
-            Text(entry.sections[offset].map { $0.name }.joined(separator: " · "))
-                .font(.system(size: 12.5, weight: .medium))
-                .foregroundColor(Paper.ink.opacity(0.85))
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            Spacer(minLength: 0)
+    private func largeSection(_ offset: Int) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(GanJiStyle.title(for: offset))
+                    .font(.system(size: 11.5, weight: .bold))
+                    .foregroundColor(Paper.red)
+                Text("\(entry.branchNames[offset])日")
+                    .font(.system(size: 10))
+                    .foregroundColor(Paper.muted)
+                Spacer(minLength: 0)
+            }
+            if entry.sections[offset].isEmpty {
+                Text("无圩")
+                    .font(.system(size: 15))
+                    .foregroundColor(Paper.muted)
+            } else {
+                HStack(spacing: 16) {
+                    ForEach(entry.sections[offset].prefix(4)) { item in
+                        marketRow(item, size: offset == 0 ? 19 : 16)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
         }
     }
 }
