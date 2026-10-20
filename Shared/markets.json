@@ -1,0 +1,10 @@
+{
+  "updated": "2026-10-20",
+  "source": "圩日表 xuribiao.com",
+  "markets": [
+    { "id": "damiao",  "name": "大妙村", "area": "平南县", "group": "鼠兔马鸡", "lat": 23.1364, "lon": 110.3138, "size": "大集" },
+    { "id": "luoxiu",  "name": "罗秀镇", "area": "桂平市", "group": "牛龙羊狗", "lat": 23.0642, "lon": 110.2939, "size": "大集" },
+    { "id": "liuchen", "name": "六陈镇", "area": "平南县", "group": "虎蛇猴猪", "lat": 23.1899, "lon": 110.3594, "size": "大集" },
+    { "id": "madong",  "name": "麻垌镇", "area": "桂平市", "group": "虎蛇猴猪", "lat": 23.1526, "lon": 110.1651, "size": "大集" }
+  ]
+}
