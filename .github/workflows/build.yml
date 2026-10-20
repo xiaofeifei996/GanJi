@@ -13,6 +13,11 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
+      - name: Verify schedule and market order
+        run: |
+          swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests
+          /tmp/ganji-tests
+
       - name: Generate project
         run: xcodegen generate
 
