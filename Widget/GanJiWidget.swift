@@ -94,24 +94,24 @@ struct GanJiWidgetView: View {
         GeometryReader { geo in
             VStack(alignment: .leading, spacing: 0) {
                 Text("赶集日记")
-                    .font(.system(size: small ? 11 : 12, weight: .medium))
+                    .font(.system(size: small ? 12 : 13, weight: .medium))
                     .tracking(1.5).foregroundColor(.white.opacity(0.75))
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text(LunarCalendar.shortDate(entry.date))
-                        .font(.system(size: small ? 23 : large ? 40 : 29, weight: .bold))
+                        .font(.system(size: small ? 26 : large ? 48 : 34, weight: .bold))
                     if !small {
                         Text(LunarCalendar.weekdayText(entry.date))
-                            .font(.system(size: 12)).foregroundColor(.white.opacity(0.85))
+                            .font(.system(size: 13)).foregroundColor(.white.opacity(0.85))
                     }
                 }
                 .lineLimit(1).minimumScaleFactor(0.8).padding(.top, 4)
                 Text("农历\(LunarCalendar.lunarText(entry.date)) · \(LunarCalendar.ganzhiName(entry.date))日")
-                    .font(.system(size: small ? 10 : large ? 14 : 11))
+                    .font(.system(size: small ? 11 : large ? 16 : 12))
                     .foregroundColor(Color(red: 0.62, green: 0.77, blue: 0.82))
                     .lineLimit(1).minimumScaleFactor(0.7).padding(.top, 1)
 
                 if large { Spacer(minLength: 12) }
-                today.padding(.top, small ? 7 : 6)
+                today.padding(.top, small ? 5 : 4)
                     .frame(maxWidth: small ? .infinity : geo.size.width * 0.76, alignment: .leading)
                 Spacer(minLength: 2)
                 VStack(alignment: .leading, spacing: large ? 12 : 3) {
@@ -122,7 +122,7 @@ struct GanJiWidgetView: View {
             .foregroundColor(.white)
             .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
             .padding(.horizontal, small ? 12 : 15)
-            .padding(.vertical, small ? 11 : large ? 20 : 10)
+            .padding(.vertical, small ? 8 : large ? 18 : 6)
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
     }
@@ -130,15 +130,15 @@ struct GanJiWidgetView: View {
     @ViewBuilder private var today: some View {
         if small || large {
             VStack(alignment: .leading, spacing: large ? 9 : 3) {
-                Text("今天").font(.system(size: small ? 10 : 14, weight: .semibold)).foregroundColor(mint)
+                Text("今天").font(.system(size: small ? 11 : 16, weight: .semibold)).foregroundColor(mint)
                 Text(names(0, short: small))
-                    .font(.system(size: small ? 15 : 27, weight: .bold))
+                    .font(.system(size: small ? 17 : 32, weight: .bold))
                     .lineLimit(large ? 2 : 1).minimumScaleFactor(0.65)
             }
         } else {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("今天").font(.system(size: 11, weight: .semibold)).foregroundColor(mint)
-                Text(names(0, short: false)).font(.system(size: 21, weight: .bold))
+                Text("今天").font(.system(size: 13, weight: .semibold)).foregroundColor(mint)
+                Text(names(0, short: false)).font(.system(size: 24, weight: .bold))
                     .lineLimit(1).minimumScaleFactor(0.65)
             }
         }
@@ -147,11 +147,11 @@ struct GanJiWidgetView: View {
     private func future(_ offset: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: small ? 3 : 5) {
             Text(offset == 1 ? "明天" : "后天")
-                .font(.system(size: small ? 10 : large ? 14 : 11, weight: .semibold)).foregroundColor(mint)
+                .font(.system(size: small ? 11 : large ? 16 : 13, weight: .semibold)).foregroundColor(mint)
             Text(numericDate(entry.days[offset]))
-                .font(.system(size: small ? 9 : large ? 13 : 10)).foregroundColor(.white.opacity(0.62))
+                .font(.system(size: small ? 10 : large ? 15 : 12)).foregroundColor(.white.opacity(0.62))
             Text(names(offset, short: offset == 2 || small))
-                .font(.system(size: small ? 10 : large ? 17 : 11))
+                .font(.system(size: small ? 11 : large ? 19 : 13))
                 .foregroundColor(.white.opacity(0.85))
                 .lineLimit(1).minimumScaleFactor(0.65)
         }
