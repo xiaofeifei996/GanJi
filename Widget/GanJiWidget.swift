@@ -47,7 +47,11 @@ struct MarketProvider: TimelineProvider {
         return GanJiEntry(date: now, days: days, sections: [[], [], []], isPlaceholder: true)
     }
     func getSnapshot(in context: Context, completion: @escaping (GanJiEntry) -> Void) {
-        completion(build(Date()))
+        if context.isPreview {
+            completion(placeholder(in: context))
+        } else {
+            completion(build(Date()))
+        }
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiEntry>) -> Void) {
         // Build only the current entry. Computing eight complete market timelines
@@ -216,17 +220,47 @@ struct GanJiWidgetView: View {
 
     var body: some View {
         Group {
-            if #available(iOS 17.0, *) {
+            // Keep WidgetKit gallery and first-add previews independent of the
+            // richer production layout. This path uses only basic SwiftUI views.
+            if entry.isPlaceholder {
+                previewContent
+            } else if #available(iOS 17.0, *) {
                 content
                     .containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
             } else {
-                // iOS 16.4/16.5 devices have shown a completely blank widget
-                // with the richer composed view. Use a deliberately simple,
-                // self-contained legacy layout on iOS 16 to avoid that path.
+                // iOS 16.4/16.5 fallback: a simple self-contained layout.
                 legacyContent
             }
         }
         .unredacted()
+    }
+
+    private var previewContent: some View {
+        ZStack {
+            Color(red: 0.94, green: 0.95, blue: 0.88)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("赶集日记")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(red: 0.12, green: 0.22, blue: 0.18))
+                Text("今日圩日")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(red: 0.12, green: 0.22, blue: 0.18))
+                Text("圩日预览")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(red: 0.12, green: 0.22, blue: 0.18))
+                Text("打开 App 同步圩日")
+                    .font(.caption)
+                    .foregroundColor(Color(red: 0.75, green: 0.28, blue: 0.12))
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
 
     @ViewBuilder private var legacyContent: some View {
