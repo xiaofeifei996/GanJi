@@ -49,12 +49,18 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     if rows.isEmpty {
-                        ContentUnavailableView(
-                            showingFavorites ? "还没有收藏的集市" : "没有找到集市",
-                            systemImage: showingFavorites ? "heart" : "magnifyingglass",
-                            description: Text(showingFavorites ? "点选集市旁的心形按钮即可收藏。" : "试试其他集市名或地区名称。")
-                        )
-                        .padding(.top, 20)
+                        VStack(spacing: 10) {
+                            Image(systemName: showingFavorites ? "heart" : "magnifyingglass")
+                                .font(.system(size: 28))
+                                .foregroundColor(.secondary)
+                            Text(showingFavorites ? "还没有收藏的集市" : "没有找到集市")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(showingFavorites ? "点选集市旁的心形按钮即可收藏。" : "试试其他集市名或地区名称。")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 28)
                     } else {
                         ForEach(rows) { row in
                             MarketCard(
