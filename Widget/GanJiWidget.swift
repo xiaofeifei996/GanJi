@@ -244,7 +244,7 @@ struct GanJiWidgetView: View {
                 .font(.caption)
                 .foregroundColor(dark ? .white : Color(red: 0.12, green: 0.22, blue: 0.18))
 
-                ForEach(0..<3, id: \\.self) { index in
+                ForEach(0..<3, id: \.self) { index in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(["今日", "明日", "后日"][index])
                             .font(.caption2)
