@@ -110,6 +110,21 @@ private struct WidgetCanvas: View {
                 .frame(width: 420, height: family == .systemSmall ? 35 : 58)
                 .offset(x: -10, y: 43)
 
+            // Subtle Lingnan village houses along the bottom edge.
+            // Keep the silhouette low-contrast so text and cards remain clear.
+            if family != .systemSmall {
+                HStack(alignment: .bottom, spacing: 5) {
+                    villageShape(width: 20, height: 25)
+                    villageShape(width: 27, height: 33)
+                    villageShape(width: 18, height: 23)
+                    villageShape(width: 23, height: 28)
+                }
+                .opacity(dark ? 0.28 : 0.42)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(.leading, 22)
+                .padding(.bottom, 8)
+            }
+
             if family != .systemSmall {
                 Capsule()
                     .fill(dark ? Color(red: 0.24, green: 0.42, blue: 0.42).opacity(0.65) : Color(red: 0.77, green: 0.88, blue: 0.87).opacity(0.88))
@@ -124,6 +139,22 @@ private struct WidgetCanvas: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .accessibilityHidden(true)
+    }
+
+    private func villageShape(width: CGFloat, height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Triangle()
+                .fill(Color(red: 0.68, green: 0.34, blue: 0.22))
+                .frame(width: width + 7, height: height * 0.30)
+            Rectangle()
+                .fill(dark ? Color(red: 0.73, green: 0.77, blue: 0.66) : Color(red: 0.98, green: 0.93, blue: 0.80))
+                .frame(width: width, height: height * 0.70)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color(red: 0.34, green: 0.49, blue: 0.43))
+                        .frame(width: max(4, width * 0.20), height: height * 0.28)
+                }
+        }
     }
 }
 
