@@ -1,6 +1,10 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
-/// Loads market records for a selected county from the public market endpoint.
+/// Fetches the same public market-list endpoint observed in the user's HAR.
+/// Availability and response shape for other area codes must be verified at runtime.
 enum MarketAPI {
     private struct Envelope: Decodable {
         let total: Int?
@@ -31,7 +35,7 @@ enum MarketAPI {
         }
     }
 
-    static func fetch(areaCode: Int, province: String = "", city: String = "", area: String = "") async throws -> [Market] {
+    static func fetch(areaCode: Int) async throws -> [Market] {
         var components = URLComponents(string: "https://api.ganjirili.com/gathers")!
         components.queryItems = [
             URLQueryItem(name: "page", value: "1"),
@@ -39,6 +43,7 @@ enum MarketAPI {
             URLQueryItem(name: "areacode", value: String(areaCode))
         ]
         var request = URLRequest(url: components.url!)
+        request.httpMethod = "GET"
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (rawData, response) = try await URLSession.shared.data(for: request)
@@ -46,6 +51,8 @@ enum MarketAPI {
             throw URLError(.badServerResponse)
         }
 
+        // HAR exports can mark JSON response bodies as base64. Live HTTP usually returns JSON directly;
+        // accept either representation without assuming the server always uses one format.
         let data: Data
         if (try? JSONSerialization.jsonObject(with: rawData)) != nil {
             data = rawData
@@ -58,25 +65,24 @@ enum MarketAPI {
         }
 
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        let known = MarketStore.load().first(where: { $0.areaCode == areaCode })
         return envelope.data.compactMap { item in
             guard let gps = item.gps, gps.count >= 2 else { return nil }
-            let values = item.repeatValue ?? []
-            let branchMap = ["鼠":"子","牛":"丑","虎":"寅","兔":"卯","龙":"辰","蛇":"巳","马":"午","羊":"未","猴":"申","鸡":"酉","狗":"戌","猪":"亥"]
-            let branches = item.repeatType == 6 ? values.compactMap { branchMap[$0] }.joined() : ""
             return Market(
                 id: String(item.id),
                 name: item.name,
-                area: area,
-                branches: branches,
-                lat: gps[1],
-                lon: gps[0],
-                size: item.marketType == 1 ? "大集" : "集市",
-                province: province,
-                city: city,
+                province: known?.province ?? "",
+                city: known?.city ?? "",
+                area: known?.area ?? "",
+                provinceCode: known?.provinceCode,
                 cityCode: item.cityCode,
                 areaCode: item.areaCode ?? areaCode,
+                sourceAreaCode: item.areaCode ?? areaCode,
+                lat: gps[1],
+                lon: gps[0],
+                marketType: item.marketType,
                 repeatType: item.repeatType,
-                repeatValue: values,
+                repeatValue: item.repeatValue ?? [],
                 remark: item.remark ?? "",
                 place: item.place ?? "",
                 address: item.address ?? "",
@@ -88,19 +94,17 @@ enum MarketAPI {
 
 enum MarketCache {
     private static func url(for areaCode: Int) -> URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("markets-\(areaCode).json")
+        guard let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        return base.appendingPathComponent("markets-\(areaCode).json")
     }
 
     static func save(_ markets: [Market], areaCode: Int) {
-        guard let url = url(for: areaCode),
-              let data = try? JSONEncoder().encode(Wrapper(markets: markets)) else { return }
+        guard let url = url(for: areaCode), let data = try? JSONEncoder().encode(Wrapper(markets: markets)) else { return }
         try? data.write(to: url, options: .atomic)
     }
 
     static func load(areaCode: Int) -> [Market]? {
-        guard let url = url(for: areaCode),
-              let data = try? Data(contentsOf: url),
+        guard let url = url(for: areaCode), let data = try? Data(contentsOf: url),
               let wrapper = try? JSONDecoder().decode(Wrapper.self, from: data) else { return nil }
         return wrapper.markets
     }
