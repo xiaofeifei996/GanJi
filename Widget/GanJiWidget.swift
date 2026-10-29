@@ -405,44 +405,66 @@ struct GanJiWidgetView: View {
     private var mediumLayout: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 6) {
-                Image(systemName: "sun.max.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                ZStack {
+                    Circle().fill(vermilion.opacity(0.14)).frame(width: 25, height: 25)
+                    Image(systemName: "basket.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(vermilion)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("今日圩日")
+                        .font(.system(size: 15, weight: .heavy, design: .serif))
+                        .foregroundColor(primaryInk)
+                    Text("\(LunarCalendar.shortDate(entry.date)) · \(LunarCalendar.weekdayText(entry.date))")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(secondaryInk)
+                }
+                Spacer(minLength: 3)
+                Text("赶集日记")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundColor(vermilion)
-                Text("今日圩日")
-                    .font(.system(size: 16, weight: .heavy, design: .serif))
-                    .foregroundColor(primaryInk)
-                Spacer(minLength: 4)
-                Text("\(LunarCalendar.shortDate(entry.date))  \(LunarCalendar.weekdayText(entry.date))")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(secondaryInk)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(vermilion.opacity(0.10), in: Capsule())
             }
 
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 9) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(names(0, short: false))
-                        .font(.system(size: 27, weight: .heavy, design: .serif))
+                        .font(.system(size: 24, weight: .heavy, design: .serif))
                         .foregroundColor(primaryInk)
                         .lineLimit(2)
                         .minimumScaleFactor(0.62)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text("农历 \(LunarCalendar.lunarText(entry.date)) · \(LunarCalendar.ganzhiName(entry.date))日")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 9, weight: .medium))
                         .foregroundColor(secondaryInk)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
 
                     HStack(spacing: 4) {
                         Circle().fill(vermilion).frame(width: 5, height: 5)
-                        Text(entry.sections.first?.isEmpty == false ? "今日开圩" : "今日暂无圩日")
-                            .font(.system(size: 10, weight: .semibold))
+                        Text(entry.sections.first?.isEmpty == false ? "今日开圩 · 记得出发" : "今日暂无圩日")
+                            .font(.system(size: 9, weight: .semibold))
                             .foregroundColor(vermilion)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
-                    .padding(.top, 2)
+                    LandscapeMiniature()
+                        .frame(height: 42)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(alignment: .bottomLeading) {
+                            Text("岭南乡野 · 圩日历")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundColor(Color(red: 0.12, green: 0.22, blue: 0.18))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.white.opacity(0.72), in: Capsule())
+                                .padding(5)
+                        }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 6) {
                     forecastMiniCard(1)
@@ -453,6 +475,13 @@ struct GanJiWidgetView: View {
             .frame(maxHeight: .infinity, alignment: .center)
         }
         .padding(12)
+        .background(alignment: .bottomTrailing) {
+            Circle()
+                .fill(vermilion.opacity(dark ? 0.08 : 0.06))
+                .frame(width: 100, height: 100)
+                .offset(x: 25, y: 28)
+        }
+        .clipped()
     }
 
     private func forecastMiniCard(_ index: Int) -> some View {
@@ -610,9 +639,9 @@ struct GanJiWidgetView: View {
                         in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             HStack(spacing: 7) {
-                dayCard(0, compact: true)
-                dayCard(1, compact: true)
-                dayCard(2, compact: true)
+                dayCard(0)
+                dayCard(1)
+                dayCard(2)
             }
             .frame(maxHeight: .infinity, alignment: .bottom)
         }
