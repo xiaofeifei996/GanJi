@@ -10,8 +10,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install xcodegen
-        run: brew install xcodegen
+      - name: Install build tools
+        run: brew install xcodegen librsvg
+
+      - name: Generate ancient-style app icons
+        run: |
+          set -e
+          SRC="Design/AppIcon.svg"
+          ICON_DIR="GanJi/Assets.xcassets/AppIcon.appiconset"
+          rsvg-convert -w 1024 -h 1024 "$SRC" -o "$ICON_DIR/icon-1024.png"
+          for size in 180 120 87 80 60 58 40; do
+            case "$size" in
+              180) names="icon-180.png" ;;
+              120) names="icon-120.png icon-120_2.png" ;;
+              87) names="icon-87.png" ;;
+              80) names="icon-80.png" ;;
+              60) names="icon-60.png" ;;
+              58) names="icon-58.png" ;;
+              40) names="icon-40.png" ;;
+            esac
+            for name in $names; do
+              sips -z "$size" "$size" "$ICON_DIR/icon-1024.png" --out "$ICON_DIR/$name" >/dev/null
+            done
+          done
 
       - name: Verify schedule and market order
         run: |
