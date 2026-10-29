@@ -1,44 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
 <defs>
- <linearGradient id="paper" x2="0" y2="1"><stop stop-color="#fffdf4"/><stop offset="1" stop-color="#f1ead7"/></linearGradient>
- <linearGradient id="mount" x2="0" y2="1"><stop stop-color="#9bbbd0"/><stop offset="1" stop-color="#527fa3"/></linearGradient>
- <linearGradient id="river" x2="0" y2="1"><stop stop-color="#c9e1ec"/><stop offset="1" stop-color="#77a8c7"/></linearGradient>
- <clipPath id="frame"><rect width="1024" height="1024" rx="180"/></clipPath>
+  <linearGradient id="paper" x1="0" y1="0" x2="0.15" y2="1"><stop stop-color="#FBF7EC"/><stop offset="1" stop-color="#EDE7D7"/></linearGradient>
+  <linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#A9C9C3"/><stop offset="1" stop-color="#6E9F98"/></linearGradient>
+  <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#527F78"/><stop offset="1" stop-color="#24564E"/></linearGradient>
+  <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#C9DFD8"/><stop offset="1" stop-color="#7DAFA5"/></linearGradient>
 </defs>
-<g clip-path="url(#frame)">
- <rect width="1024" height="1024" fill="url(#paper)"/>
- <path d="M0 435 Q135 290 255 350 T505 325 T790 360 T1024 290 V730 H0Z" fill="#dce8e8"/>
- <circle cx="770" cy="255" r="108" fill="#c94f43"/>
- <circle cx="770" cy="255" r="88" fill="none" stroke="#e88768" stroke-width="5" opacity=".75"/>
- <path d="M0 575 L115 435 205 520 345 330 490 500 610 390 740 530 875 405 1024 535 V790 H0Z" fill="url(#mount)" opacity=".92"/>
- <path d="M0 635 Q160 505 305 590 T590 565 T850 590 T1024 535 V815 H0Z" fill="#b2ccda"/>
- <path d="M0 680 Q180 605 340 675 T650 655 T1024 635 V1024 H0Z" fill="url(#river)"/>
- <path d="M-20 800 Q200 710 390 800 T780 795 T1060 730" fill="none" stroke="#f7f4e8" stroke-width="28" opacity=".9"/>
- <path d="M-10 880 Q180 790 370 875 T740 870 T1040 820" fill="none" stroke="#4d82a8" stroke-width="10" opacity=".55"/>
- <!-- village roofs -->
- <g fill="#f7f3e7" stroke="#234f77" stroke-width="13" stroke-linejoin="round">
-  <path d="M62 590 L155 510 248 590 226 583 226 685 83 685 83 583Z"/>
-  <path d="M185 630 L288 540 392 630 366 621 366 730 213 730 213 621Z"/>
-  <path d="M670 610 L770 520 870 610 845 600 845 710 695 710 695 600Z"/>
-  <path d="M790 650 L884 570 978 650 955 641 955 735 815 735 815 641Z"/>
- </g>
- <g fill="#244f77">
-  <path d="M38 600 L155 488 271 600 235 592 155 528 75 592Z"/>
-  <path d="M155 640 L288 515 422 640 382 629 288 555 195 629Z"/>
-  <path d="M642 625 L770 493 900 625 860 613 770 540 680 613Z"/>
-  <path d="M766 665 L884 544 1000 665 963 653 884 589 805 653Z"/>
- </g>
- <g fill="#d7e5e9"><rect x="111" y="612" width="25" height="37"/><rect x="169" y="612" width="25" height="37"/><rect x="249" y="650" width="28" height="45"/><rect x="310" y="650" width="28" height="45"/><rect x="735" y="635" width="28" height="43"/><rect x="792" y="635" width="28" height="43"/><rect x="850" y="673" width="25" height="37"/><rect x="906" y="673" width="25" height="37"/></g>
- <!-- calligraphy seal and title -->
- <text x="512" y="340" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK TC, serif" font-size="210" font-weight="900" fill="#174d78" letter-spacing="18">圩日</text>
- <path d="M355 385 Q512 407 669 385" stroke="#174d78" stroke-width="7" fill="none" opacity=".75"/>
- <text x="512" y="455" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK TC, serif" font-size="56" letter-spacing="22" fill="#285d83">赶 集 日</text>
- <g transform="translate(850 370) rotate(7)">
-  <rect x="-57" y="-63" width="114" height="126" rx="8" fill="#bd493f"/>
-  <rect x="-45" y="-51" width="90" height="102" rx="4" fill="none" stroke="#f4dfc7" stroke-width="4"/>
-  <text x="0" y="-4" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK TC, serif" font-size="39" fill="#fff3df">赶</text>
-  <text x="0" y="39" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK TC, serif" font-size="39" fill="#fff3df">集</text>
- </g>
- <g fill="#285d83" opacity=".8"><path d="M78 300 Q110 265 142 300 Q110 287 78 300Z"/><path d="M160 270 Q190 238 220 270 Q190 258 160 270Z"/><path d="M600 180 Q630 150 660 180 Q630 169 600 180Z"/></g>
- <path d="M70 950 Q512 920 954 950" fill="none" stroke="#a9c1ca" stroke-width="5"/>
-</g></svg>
+<rect width="1024" height="1024" fill="url(#paper)"/>
+<circle cx="790" cy="235" r="112" fill="#D96F54"/>
+<path d="M0 300 Q120 250 235 300 T470 286 T720 300 T1024 250" fill="none" stroke="#D8C6A1" stroke-width="10" stroke-linecap="round" opacity=".85"/>
+<path d="M0 565 L130 410 240 505 375 330 515 505 645 390 770 515 900 395 1024 485 V780 H0Z" fill="url(#hill1)"/>
+<path d="M0 650 Q140 555 280 635 T545 610 T800 635 T1024 580 V820 H0Z" fill="#8FB7AD"/>
+<path d="M0 720 Q180 635 345 715 T650 690 T1024 670 V1024 H0Z" fill="url(#hill2)"/>
+<path d="M0 820 Q170 760 320 835 T600 820 T820 810 T1024 770 V1024 H0Z" fill="url(#water)"/>
+<path d="M-30 910 Q150 820 330 900 T670 890 T1050 840" fill="none" stroke="#F8F3E7" stroke-width="30" opacity=".9"/>
+<path d="M0 965 Q170 900 340 965 T690 950 T1024 910" fill="none" stroke="#4C8278" stroke-width="8" opacity=".65"/>
+<g fill="#F8F3E7" stroke="#24564E" stroke-width="9" stroke-linejoin="round">
+ <path d="M65 685 L145 615 225 685 205 678 205 755 85 755 85 678Z"/>
+ <path d="M190 720 L278 642 366 720 344 711 344 790 212 790 212 711Z"/>
+ <path d="M740 685 L820 615 900 685 880 678 880 755 760 755 760 678Z"/>
+ <path d="M835 720 L915 650 995 720 975 712 975 790 855 790 855 712Z"/>
+</g>
+<g fill="#24564E">
+ <path d="M45 690 L145 595 245 690 211 680 145 620 79 680Z"/>
+ <path d="M165 726 L278 620 390 726 352 714 278 646 204 714Z"/>
+ <path d="M718 690 L820 595 922 690 886 680 820 620 754 680Z"/>
+ <path d="M812 726 L915 630 1018 726 982 714 915 654 848 714Z"/>
+</g>
+<g fill="#D9E9E2"><rect x="111" y="704" width="19" height="30"/><rect x="160" y="704" width="19" height="30"/><rect x="244" y="745" width="21" height="31"/><rect x="292" y="745" width="21" height="31"/><rect x="786" y="704" width="19" height="30"/><rect x="835" y="704" width="19" height="30"/><rect x="880" y="746" width="19" height="30"/><rect x="928" y="746" width="19" height="30"/></g>
+<g fill="#174A41">
+ <text x="490" y="390" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK SC, serif" font-size="222" font-weight="900" letter-spacing="10">圩日</text>
+ <path d="M305 430 Q490 455 675 430" fill="none" stroke="#174A41" stroke-width="7" opacity=".8"/>
+ <text x="490" y="510" text-anchor="middle" font-family="Georgia, serif" font-size="58" letter-spacing="13">GanJi</text>
+</g>
+<g transform="translate(832 435) rotate(7)">
+ <rect x="-48" y="-59" width="96" height="118" rx="5" fill="#C84F43"/>
+ <rect x="-37" y="-48" width="74" height="96" rx="3" fill="none" stroke="#F8E9D3" stroke-width="4"/>
+ <text x="0" y="-4" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK SC, serif" font-size="34" fill="#FFF4E3">圩</text>
+ <text x="0" y="34" text-anchor="middle" font-family="STSong, Songti SC, Noto Serif CJK SC, serif" font-size="34" fill="#FFF4E3">日</text>
+</g>
+<path d="M80 570 Q120 530 160 570 Q120 554 80 570Z M185 535 Q220 495 255 535 Q220 519 185 535Z M550 250 Q580 220 610 250 Q580 238 550 250Z" fill="#B7A77F" opacity=".9"/>
+</svg>
