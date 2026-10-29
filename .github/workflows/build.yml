@@ -11,13 +11,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install build tools
-        run: brew install xcodegen librsvg
+        run: brew install xcodegen
 
-      - name: Generate AppIcon assets from Design/AppIcon.svg
+      - name: Generate AppIcon assets from the approved original image
         run: |
           set -euo pipefail
           ICON_DIR="GanJi/Assets.xcassets/AppIcon.appiconset"
-          rsvg-convert -w 1024 -h 1024 -o /tmp/ganji-icon-1024.png Design/AppIcon.svg
+          sips -s format png Design/AppIcon-Approved.jpg --out /tmp/ganji-icon-1024.png >/dev/null
           sips -z 40 40 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-40.png" >/dev/null
           sips -z 60 60 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-60.png" >/dev/null
           sips -z 58 58 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-58.png" >/dev/null
