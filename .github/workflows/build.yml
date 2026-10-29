@@ -10,8 +10,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install xcodegen
-        run: brew install xcodegen
+      - name: Install build tools
+        run: brew install xcodegen librsvg
+
+      - name: Generate AppIcon assets from Design/AppIcon.svg
+        run: |
+          set -euo pipefail
+          ICON_DIR="GanJi/Assets.xcassets/AppIcon.appiconset"
+          rsvg-convert -w 1024 -h 1024 -o /tmp/ganji-icon-1024.png Design/AppIcon.svg
+          sips -z 40 40 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-40.png" >/dev/null
+          sips -z 60 60 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-60.png" >/dev/null
+          sips -z 58 58 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-58.png" >/dev/null
+          sips -z 87 87 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-87.png" >/dev/null
+          sips -z 80 80 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-80.png" >/dev/null
+          sips -z 120 120 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-120_2.png" >/dev/null
+          sips -z 120 120 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-120.png" >/dev/null
+          sips -z 180 180 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-180.png" >/dev/null
+          cp /tmp/ganji-icon-1024.png "$ICON_DIR/icon-1024.png"
 
       - name: Verify schedule and market order
         run: |
