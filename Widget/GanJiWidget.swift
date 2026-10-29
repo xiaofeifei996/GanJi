@@ -217,15 +217,65 @@ struct GanJiWidgetView: View {
     var body: some View {
         Group {
             if #available(iOS 17.0, *) {
-                content.containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
+                content
+                    .containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
             } else {
-                content.background(WidgetCanvas(dark: dark))
+                // iOS 16.4/16.5 devices have shown a completely blank widget
+                // with the richer composed view. Use a deliberately simple,
+                // self-contained legacy layout on iOS 16 to avoid that path.
+                legacyContent
             }
         }
-        // WidgetKit automatically applies a placeholder redaction while it is
-        // waiting for the first timeline entry. Keep this widget's deliberately
-        // designed placeholder readable instead of showing only grey skeletons.
         .unredacted()
+    }
+
+    @ViewBuilder private var legacyContent: some View {
+        ZStack {
+            (dark ? Color(red: 0.07, green: 0.16, blue: 0.15) : Color(red: 0.94, green: 0.95, blue: 0.88))
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 5) {
+                    Image(systemName: "leaf.fill")
+                    Text("赶集日记")
+                        .fontWeight(.bold)
+                    Spacer(minLength: 0)
+                    Text(entry.date, style: .date)
+                        .font(.caption2)
+                }
+                .font(.caption)
+                .foregroundColor(dark ? .white : Color(red: 0.12, green: 0.22, blue: 0.18))
+
+                ForEach(0..<3, id: \\.self) { index in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(["今日", "明日", "后日"][index])
+                            .font(.caption2)
+                            .fontWeight(.semibold)
+                        Text(legacyMarketNames(index))
+                            .font(index == 0 ? .headline : .subheadline)
+                            .fontWeight(.bold)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.65)
+                    }
+                    .foregroundColor(dark ? .white : Color(red: 0.12, green: 0.22, blue: 0.18))
+                    if index < 2 {
+                        Divider().opacity(0.45)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+    }
+
+    private func legacyMarketNames(_ index: Int) -> String {
+        if entry.isPlaceholder {
+            return index == 0 ? "圩日预览" : "待同步"
+        }
+        guard entry.sections.indices.contains(index) else { return "暂无数据" }
+        let items = entry.sections[index]
+        if items.isEmpty { return index == 0 ? "今日无圩" : "暂无圩日" }
+        return items.map { $0.name }.joined(separator: " · ")
     }
 
     private func names(_ offset: Int, short: Bool = false) -> String {
