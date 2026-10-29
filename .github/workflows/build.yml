@@ -1,0 +1,120 @@
+name: Build GanJi
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: brew install xcodegen
+
+      - name: Install image processing dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install pillow numpy
+
+      - name: Remove white outer border and generate AppIcon assets
+        run: |
+          set -euo pipefail
+          SOURCE="GanJi-AppIcon-Original-1024.png"
+          ICON_DIR="GanJi/Assets.xcassets/AppIcon.appiconset"
+          test -f "$SOURCE"
+          mkdir -p "$ICON_DIR"
+          # Only replace near-white pixels near the image perimeter with warm cream.
+          # The central logo artwork and its colors are left untouched.
+          .venv/bin/python - <<'PY'
+          from PIL import Image
+          import numpy as np
+          src = Image.open("GanJi-AppIcon-Original-1024.png").convert("RGB")
+          a = np.asarray(src).astype(np.float32).copy()
+          h, w, _ = a.shape
+          yy, xx = np.mgrid[0:h, 0:w]
+          edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy])
+          near_white = (a.min(axis=2) > 232) & ((a.max(axis=2) - a.min(axis=2)) < 24) & (edge < 190)
+          t = yy / max(1, h - 1)
+          cream = np.empty_like(a)
+          cream[:, :, 0] = 250 - 2 * t
+          cream[:, :, 1] = 243 - 3 * t
+          cream[:, :, 2] = 222 - 5 * t
+          a[near_white] = cream[near_white]
+          Image.fromarray(np.clip(a, 0, 255).astype("uint8")).save("/tmp/ganji-icon-1024.png")
+          PY
+          cp /tmp/ganji-icon-1024.png "$ICON_DIR/icon-1024.png"
+          sips -z 40 40 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-40.png" >/dev/null
+          sips -z 60 60 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-60.png" >/dev/null
+          sips -z 58 58 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-58.png" >/dev/null
+          sips -z 87 87 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-87.png" >/dev/null
+          sips -z 80 80 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-80.png" >/dev/null
+          sips -z 120 120 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-120_2.png" >/dev/null
+          sips -z 120 120 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-120.png" >/dev/null
+          sips -z 180 180 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-180.png" >/dev/null
+          for f in "$ICON_DIR"/icon-*.png; do
+            sips -g pixelWidth -g pixelHeight "$f"
+          done
+
+      - name: Verify schedule and market order
+        run: |
+          swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests
+          /tmp/ganji-tests
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build (capture full diagnostics)
+        shell: bash
+        run: |
+          set +e
+          xcodebuild -project GanJi.xcodeproj -scheme GanJi \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            ONLY_ACTIVE_ARCH=NO > build.log 2>&1
+          status=$?
+          echo "===== Swift / compiler errors ====="
+          grep -n -B 5 -A 10 -E 'error:|fatal error:|BUILD FAILED' build.log || true
+          echo "===== Build log tail ====="
+          tail -n 50 build.log
+          exit "$status"
+
+      - name: Embed App Group entitlements for TrollStore
+        run: |
+          set -euo pipefail
+          APP="build/Build/Products/Release-iphoneos/GanJi.app"
+          WIDGET="$APP/PlugIns/GanJiWidget.appex"
+          test -d "$APP"
+          test -d "$WIDGET"
+          # The normal build deliberately disables Xcode signing. Without an explicit
+          # ad-hoc signature, CODE_SIGN_ENTITLEMENTS are not embedded in the app/widget,
+          # so TrollStore-installed builds may not get the shared App Group container.
+          codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
+          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$WIDGET"
+          echo "===== App entitlements ====="
+          codesign -d --entitlements :- "$APP" 2>&1 || true
+          echo "===== Widget entitlements ====="
+          codesign -d --entitlements :- "$WIDGET" 2>&1 || true
+
+      - name: Package IPA
+        run: |
+          set -e
+          APP="build/Build/Products/Release-iphoneos/GanJi.app"
+          ls -la "$APP"
+          ls -la "$APP/PlugIns" || true
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/PlugIns/GanJiWidget.appex/Info.plist"
+          rm -rf Payload && mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry GanJi-unsigned.ipa Payload
+          shasum -a 256 GanJi-unsigned.ipa
+          du -h GanJi-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GanJi-ipa
+          path: GanJi-unsigned.ipa
