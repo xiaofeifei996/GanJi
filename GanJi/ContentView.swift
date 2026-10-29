@@ -9,6 +9,9 @@ struct ContentView: View {
     @State private var favorites = Set(UserDefaults.standard.stringArray(forKey: "favoriteMarketIDs") ?? [])
     @State private var isRefreshing = false
     @State private var loadMessage: String?
+    @State private var showingMap = false
+    @State private var showingRegions = false
+    @State private var selectedArea = RegionArea.pingnan
 
     private var filteredMarkets: [Market] {
         markets.filter { market in
@@ -85,7 +88,11 @@ struct ContentView: View {
                 ToolbarItem(placement: .principal) {
                     Text("赶集日记").font(.system(size: 17, weight: .semibold))
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button { showingRegions = true } label: { Image(systemName: "map") }
+                        .accessibilityLabel("选择地区")
+                    Button { showingMap = true } label: { Image(systemName: "mappin.and.ellipse") }
+                        .accessibilityLabel("地图浏览")
                     Button {
                         Task { await refreshMarkets() }
                     } label: {
@@ -94,6 +101,13 @@ struct ContentView: View {
                     .disabled(isRefreshing)
                     .accessibilityLabel("刷新圩日")
                 }
+            }
+        }
+        .sheet(isPresented: $showingMap) { MarketMapView(markets: filteredMarkets) }
+        .sheet(isPresented: $showingRegions) {
+            RegionPickerView(selection: $selectedArea) { area in
+                showingRegions = false
+                Task { await refreshMarkets(for: area) }
             }
         }
         .onAppear {
@@ -188,26 +202,30 @@ struct ContentView: View {
     }
 
     @MainActor
-    private func refreshMarkets() async {
+    private func refreshMarkets() async { await refreshMarkets(for: selectedArea) }
+
+    @MainActor
+    private func refreshMarkets(for area: RegionArea) async {
+        selectedArea = area
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
         do {
             // Default coverage starts with Pingnan County; cached data remains available offline.
-            let fetched = try await MarketAPI.fetch(areaCode: 450821, province: "广西壮族自治区", city: "贵港市", area: "平南县")
+            let fetched = try await MarketAPI.fetch(areaCode: area.code, province: area.province, city: area.city, area: area.name)
             if !fetched.isEmpty {
                 markets = fetched
-                MarketCache.save(fetched, areaCode: 450821)
-                loadMessage = "已更新平南县圩日数据"
+                MarketCache.save(fetched, areaCode: area.code)
+                loadMessage = "已更新\(area.name)圩日数据"
             } else {
                 loadMessage = "接口暂未返回圩日，继续显示本地数据"
             }
         } catch {
-            if let cached = MarketCache.load(areaCode: 450821), !cached.isEmpty {
+            if let cached = MarketCache.load(areaCode: area.code), !cached.isEmpty {
                 markets = cached
-                loadMessage = "网络暂不可用，正在显示缓存数据"
+                loadMessage = "网络暂不可用，正在显示\(area.name)缓存数据"
             } else {
-                loadMessage = "网络暂不可用，正在显示内置圩日表"
+                loadMessage = "网络暂不可用，正在显示内置圩日表（\(area.name)）"
             }
         }
     }
