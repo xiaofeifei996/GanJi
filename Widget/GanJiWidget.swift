@@ -96,12 +96,12 @@ private struct WidgetCanvas: View {
                 .padding(.trailing, 24)
 
             Ellipse()
-                .fill(dark ? Color(red: 0.13, green: 0.31, blue: 0.29) : Color(red: 0.73, green: 0.84, blue: 0.79))
+                .fill(dark ? Color(red: 0.13, green: 0.31, blue: 0.29) : Color(red: 0.69, green: 0.82, blue: 0.74))
                 .frame(width: 420, height: family == .systemSmall ? 78 : 116)
                 .offset(x: -68, y: 28)
 
             Ellipse()
-                .fill(dark ? Color(red: 0.10, green: 0.26, blue: 0.22) : Color(red: 0.57, green: 0.73, blue: 0.60))
+                .fill(dark ? Color(red: 0.10, green: 0.26, blue: 0.22) : Color(red: 0.48, green: 0.68, blue: 0.53))
                 .frame(width: 390, height: family == .systemSmall ? 65 : 92)
                 .offset(x: 110, y: 35)
 
@@ -110,20 +110,24 @@ private struct WidgetCanvas: View {
                 .frame(width: 420, height: family == .systemSmall ? 35 : 58)
                 .offset(x: -10, y: 43)
 
-            // Subtle Lingnan village houses along the bottom edge.
-            // Keep the silhouette low-contrast so text and cards remain clear.
-            if family != .systemSmall {
-                HStack(alignment: .bottom, spacing: 5) {
-                    villageShape(width: 20, height: 25)
-                    villageShape(width: 27, height: 33)
-                    villageShape(width: 18, height: 23)
-                    villageShape(width: 23, height: 28)
+            // More visible Lingnan village scenery, placed in the lower
+            // background band so the existing text/card layout stays unchanged.
+            HStack(alignment: .bottom, spacing: family == .systemSmall ? 3 : 6) {
+                villageShape(width: family == .systemSmall ? 12 : 22,
+                             height: family == .systemSmall ? 15 : 28)
+                villageShape(width: family == .systemSmall ? 16 : 30,
+                             height: family == .systemSmall ? 20 : 38)
+                villageShape(width: family == .systemSmall ? 11 : 21,
+                             height: family == .systemSmall ? 14 : 25)
+                if family != .systemSmall {
+                    villageShape(width: 25, height: 31)
+                    villageShape(width: 18, height: 24)
                 }
-                .opacity(dark ? 0.28 : 0.42)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                .padding(.leading, 22)
-                .padding(.bottom, 8)
             }
+            .opacity(dark ? 0.72 : 0.92)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(.leading, family == .systemSmall ? 12 : 22)
+            .padding(.bottom, family == .systemSmall ? 4 : 8)
 
             if family != .systemSmall {
                 Capsule()
