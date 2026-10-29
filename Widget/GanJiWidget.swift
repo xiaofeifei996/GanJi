@@ -228,8 +228,14 @@ struct GanJiWidgetView: View {
                 content
                     .containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
             } else {
-                // iOS 16.4/16.5 fallback: a simple self-contained layout.
-                legacyContent
+                // iOS 16: draw the same illustrated canvas behind the same
+                // family-specific layouts used on newer systems. Since
+                // containerBackground(for: .widget) is unavailable here,
+                // place the canvas directly in the widget's view hierarchy.
+                ZStack {
+                    WidgetCanvas(dark: dark)
+                    content
+                }
             }
         }
         .unredacted()
