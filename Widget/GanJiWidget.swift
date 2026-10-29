@@ -232,10 +232,19 @@ struct GanJiWidgetView: View {
                 // family-specific layouts used on newer systems. Since
                 // containerBackground(for: .widget) is unavailable here,
                 // place the canvas directly in the widget's view hierarchy.
-                ZStack {
-                    WidgetCanvas(dark: dark)
-                    content
-                }
+                content
+                    .background {
+                        // Use a GeometryReader inside background so the
+                        // decorative canvas never contributes its 390–420 pt
+                        // illustration dimensions to the widget's layout size.
+                        // A ZStack here can expand past small/medium widget
+                        // bounds on iOS 16 and crop the leading content.
+                        GeometryReader { proxy in
+                            WidgetCanvas(dark: dark)
+                                .frame(width: proxy.size.width, height: proxy.size.height)
+                        }
+                    }
+                    .clipped()
             }
         }
         .unredacted()
