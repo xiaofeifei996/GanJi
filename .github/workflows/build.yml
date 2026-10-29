@@ -78,5 +78,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: GanJi-ipa
+          name: GanJi
+# Rebuild trigger: requested fresh IPA build.-ipa
           path: GanJi-unsigned.ipa
