@@ -18,63 +18,162 @@ struct RegionArea: Hashable, Identifiable {
     ]
 }
 
+private struct RegionOption: Identifiable, Hashable {
+    enum Kind { case province, city, county }
+    let code: Int
+    let name: String
+    let city: String
+    let province: String
+    let kind: Kind
+    var id: Int { code }
+}
+
+@MainActor
+private final class RegionCatalog: ObservableObject {
+    @Published var options: [RegionOption] = []
+    @Published var isLoading = false
+    @Published var message: String?
+    
+    func load() async {
+        guard options.isEmpty, !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        let sources = [
+            "https://dmfw.mca.gov.cn/9095/xzqh/getList?code=&maxLevel=3",
+            "https://unpkg.com/province-city-china@latest/dist/level.json"
+        ]
+        for source in sources {
+            guard let url = URL(string: source) else { continue }
+            do {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 20
+                request.setValue("application/json", forHTTPHeaderField: "Accept")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { continue }
+                let root = try JSONSerialization.jsonObject(with: data)
+                var parsed: [RegionOption] = []
+                var seen = Set<Int>()
+                func walk(_ value: Any, province: String, city: String, depth: Int) {
+                    guard depth < 16 else { return }
+                    if let array = value as? [Any] {
+                        for item in array { walk(item, province: province, city: city, depth: depth + 1) }
+                        return
+                    }
+                    guard let object = value as? [String: Any] else { return }
+                    let codeKeys = ["code", "xzqhCode", "areaCode", "adcode", "value", "id", "c"]
+                    let nameKeys = ["name", "xzqhName", "areaName", "label", "title", "n"]
+                    let rawCode = codeKeys.compactMap { object[$0] }.compactMap { item -> String? in
+                        if let string = item as? String { return string }
+                        if let number = item as? NSNumber { return number.stringValue }
+                        return nil
+                    }.first(where: { $0.allSatisfy(\.isNumber) && [2, 4, 6, 9, 12].contains($0.count) })
+                    let rawName = nameKeys.compactMap { object[$0] as? String }.first
+                    var nextProvince = province
+                    var nextCity = city
+                    if let rawCode, let rawName, !rawName.isEmpty {
+                        let digits = String(rawCode.prefix(6))
+                        if digits.count == 6, let code = Int(digits) {
+                            let kind: RegionOption.Kind
+                            if digits.hasSuffix("0000") { kind = .province; nextProvince = rawName; nextCity = "" }
+                            else if digits.hasSuffix("00") { kind = .city; nextCity = rawName }
+                            else { kind = .county }
+                            if seen.insert(code).inserted {
+                                parsed.append(RegionOption(code: code, name: rawName,
+                                    city: kind == .county ? city : (kind == .city ? province : ""),
+                                    province: kind == .province ? rawName : province, kind: kind))
+                            }
+                        }
+                    }
+                    let metadata = Set(codeKeys + nameKeys + ["province", "city", "area", "town", "parent", "parentCode", "parent_adcode", "level"])
+                    for (key, child) in object where !metadata.contains(key) {
+                        if child is [Any] || child is [String: Any] {
+                            walk(child, province: nextProvince, city: nextCity, depth: depth + 1)
+                        }
+                    }
+                }
+                walk(root, province: "", city: "", depth: 0)
+                guard parsed.filter({ $0.kind == .county }).count > 2500 else { continue }
+                options = parsed.sorted {
+                    if $0.province != $1.province { return $0.province.localizedCompare($1.province) == .orderedAscending }
+                    if $0.city != $1.city { return $0.city.localizedCompare($1.city) == .orderedAscending }
+                    return $0.name.localizedCompare($1.name) == .orderedAscending
+                }
+                message = "行政区划已加载。注意：行政区划覆盖全国，但圩日数据可能仅覆盖部分地区。"
+                return
+            } catch { continue }
+        }
+        options = RegionArea.supported.map {
+            RegionOption(code: $0.code, name: $0.name, city: $0.city, province: $0.province, kind: .county)
+        }
+        message = "全国行政区划加载失败，暂显示内置地区。"
+    }
+}
+
 struct RegionPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selection: RegionArea
     let onSelect: (RegionArea) -> Void
+    @StateObject private var catalog = RegionCatalog()
     @State private var searchText = ""
 
-    private var areas: [RegionArea] {
-        guard !searchText.isEmpty else { return RegionArea.supported }
-        return RegionArea.supported.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText)
-                || $0.city.localizedCaseInsensitiveContains(searchText)
-                || $0.province.localizedCaseInsensitiveContains(searchText)
-        }
+    private var results: [RegionOption] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return catalog.options.filter { $0.kind == .county }.prefix(120).map { $0 } }
+        return catalog.options.filter {
+            $0.name.localizedCaseInsensitiveContains(q)
+                || $0.city.localizedCaseInsensitiveContains(q)
+                || $0.province.localizedCaseInsensitiveContains(q)
+        }.sorted {
+            let a = $0.kind == .county ? 0 : ($0.kind == .city ? 1 : 2)
+            let b = $1.kind == .county ? 0 : ($1.kind == .city ? 1 : 2)
+            return a == b ? $0.name.localizedCompare($1.name) == .orderedAscending : a < b
+        }.prefix(80).map { $0 }
     }
 
     var body: some View {
         NavigationView {
             List {
-                Section {
-                    Text("目前已接入数据的县级地区")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                    ForEach(areas) { area in
+                if catalog.isLoading {
+                    HStack { ProgressView(); Text("正在加载全国行政区划…").font(.footnote) }
+                }
+                if let message = catalog.message {
+                    Text(message).font(.footnote).foregroundColor(.secondary)
+                }
+                Section("搜索行政区划") {
+                    ForEach(results) { option in
                         Button {
+                            guard option.kind == .county else { return }
+                            let area = RegionArea(code: option.code, name: option.name, city: option.city, province: option.province)
                             selection = area
                             onSelect(area)
                             dismiss()
                         } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .foregroundColor(.accentColor)
-                                    .frame(width: 24)
+                            HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(area.name).foregroundColor(.primary)
-                                    Text("\(area.province) · \(area.city)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    Text(option.name).foregroundColor(.primary)
+                                    Text([option.province, option.city].filter { !$0.isEmpty }.joined(separator: " · "))
+                                        .font(.caption).foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                if selection == area {
+                                if option.kind != .county {
+                                    Text(option.kind == .province ? "省级" : "市级")
+                                        .font(.caption).foregroundColor(.secondary)
+                                } else if selection.code == option.code {
                                     Image(systemName: "checkmark.circle.fill").foregroundColor(.accentColor)
                                 }
                             }
                         }
+                        .disabled(option.kind != .county)
                     }
-                } footer: {
-                    Text("省级全国搜索可通过地图地点搜索使用；县级圩日数据当前覆盖列表中的地区，其他地区需要补充接口行政区划数据。")
                 }
             }
-            .searchable(text: $searchText, prompt: "搜索省、市、县")
+            .searchable(text: $searchText, prompt: "输入省、市、县名称")
             .navigationTitle("选择赶集地区")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") { dismiss() }
-                }
+                ToolbarItem(placement: .navigationBarTrailing) { Button("完成") { dismiss() } }
             }
+            .task { await catalog.load() }
         }
     }
 }
