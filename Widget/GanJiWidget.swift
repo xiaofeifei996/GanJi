@@ -19,25 +19,18 @@ struct MarketProvider: TimelineProvider {
         let cal = Calendar.current
         let day = cal.startOfDay(for: date)
         let days = (0..<3).compactMap { cal.date(byAdding: .day, value: $0, to: day) }
-        // Match ContentView.homeMarkets(for:) exactly: the homepage shows saved
-        // favorite markets only, using the persisted favorite records and favorite IDs.
-        // Do not use GanJiHomeMarketsData here: that contains every market in the
-        // current area and makes the widget differ from the homepage.
+        // Read only the App Group cache. The widget needs exactly three dates,
+        // so do not scan 40 days ahead for every favorite market.
         let shared = UserDefaults(suiteName: "group.com.ganji.diary")
         let favoriteIDs = Set(shared?.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
         let favoriteData = shared?.data(forKey: "GanJiFavoriteMarketsData") ?? Data()
         let savedFavorites = (try? JSONDecoder().decode([Market].self, from: favoriteData)) ?? []
         let homeMarkets = savedFavorites.filter { favoriteIDs.contains($0.id) }
-        // Use the same next-opening calculation and group by daysAhead 0, 1 and 2.
-        let upcoming = MarketStore.upcoming(from: day, markets: homeMarkets)
-            .sorted { a, b in
-                if a.daysAhead != b.daysAhead { return a.daysAhead < b.daysAhead }
-                return a.market.name.localizedCompare(b.market.name) == .orderedAscending
-            }
-        let sections = (0..<3).map { offset in
-            upcoming
-                .filter { $0.daysAhead == offset }
-                .map { DayItem(id: $0.market.id, name: $0.market.name) }
+        let sections = days.enumerated().map { offset, targetDate in
+            homeMarkets
+                .filter { MarketStore.opens(on: targetDate, market: $0) }
+                .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+                .map { DayItem(id: $0.id, name: $0.name) }
         }
         return GanJiEntry(date: date, days: days, sections: sections)
     }
@@ -45,11 +38,13 @@ struct MarketProvider: TimelineProvider {
     // Keep the widget gallery / first-add preview fully designed without reading
     // shared defaults or market files while WidgetKit is requesting a placeholder.
     func placeholder(in context: Context) -> GanJiEntry {
-        // Small widgets can remain on the placeholder entry longer than other
-        // families. Build a real, local-data entry here so the small widget
-        // never gets stuck showing "圩日预览" when shared favorites already exist.
-        // This only reads the App Group cache; it does not make a network request.
-        build(Date())
+        // Keep the placeholder extremely cheap. WidgetKit may request it while
+        // the extension is starting; never decode data or calculate market dates here.
+        let now = Date()
+        let cal = Calendar.current
+        let day = cal.startOfDay(for: now)
+        let days = (0..<3).compactMap { cal.date(byAdding: .day, value: $0, to: day) }
+        return GanJiEntry(date: now, days: days, sections: [[], [], []], isPlaceholder: true)
     }
     func getSnapshot(in context: Context, completion: @escaping (GanJiEntry) -> Void) {
         completion(build(Date()))
