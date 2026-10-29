@@ -17,7 +17,16 @@ jobs:
         run: |
           set -euo pipefail
           ICON_DIR="GanJi/Assets.xcassets/AppIcon.appiconset"
-          sips -s format png Design/AppIcon-Approved.jpg --out /tmp/ganji-icon-1024.png >/dev/null
+          test -f Design/AppIcon-Approved.jpg
+          mkdir -p "$ICON_DIR"
+          # Normalize the source to a true 1024x1024 PNG before generating variants.
+          sips -s format png -z 1024 1024 Design/AppIcon-Approved.jpg --out /tmp/ganji-icon-1024.png >/dev/null
+          WIDTH="$(sips -g pixelWidth /tmp/ganji-icon-1024.png | awk '/pixelWidth/ {print $2}')"
+          HEIGHT="$(sips -g pixelHeight /tmp/ganji-icon-1024.png | awk '/pixelHeight/ {print $2}')"
+          if [[ "$WIDTH" != "1024" || "$HEIGHT" != "1024" ]]; then
+            echo "ERROR: generated source icon is ${WIDTH}x${HEIGHT}, expected 1024x1024"
+            exit 1
+          fi
           sips -z 40 40 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-40.png" >/dev/null
           sips -z 60 60 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-60.png" >/dev/null
           sips -z 58 58 /tmp/ganji-icon-1024.png --out "$ICON_DIR/icon-58.png" >/dev/null
