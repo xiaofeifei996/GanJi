@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import MapKit
 import CoreLocation
+import WidgetKit
 
 private enum MarketFilter: String, CaseIterable, Identifiable {
     case all = "全部", today = "今天", tomorrow = "明天", dayAfter = "后天"
@@ -213,6 +214,7 @@ struct ContentView: View {
                 }
             }
             .onAppear {
+                syncWidgetHomeData()
                 locator.start()
                 Task { await refreshMarkets(for: selectedAreaCode) }
                 if let first = allMarkets.first {
@@ -644,6 +646,34 @@ struct ContentView: View {
         if let data = try? JSONEncoder().encode(favoriteMarkets) {
             UserDefaults.standard.set(data, forKey: "GanJiFavoriteMarketsData")
         }
+        syncWidgetHomeData()
+    }
+
+    /// Mirror the homepage's favorites into the App Group for WidgetKit.
+    /// If a favorite ID was saved before its full market record, recover the record
+    /// from the current homepage data once the API/cache has loaded.
+    private func syncWidgetHomeData() {
+        let knownIDs = Set(favoriteMarkets.map(\.id))
+        let recovered = displayedMarkets.filter { favorites.contains($0.id) && !knownIDs.contains($0.id) }
+        if !recovered.isEmpty {
+            favoriteMarkets.append(contentsOf: recovered)
+            if let data = try? JSONEncoder().encode(favoriteMarkets) {
+                UserDefaults.standard.set(data, forKey: "GanJiFavoriteMarketsData")
+            }
+        }
+        guard let shared = UserDefaults(suiteName: "group.com.ganji.diary") else { return }
+        shared.set(Array(favorites).sorted(), forKey: "GanJiFavoriteMarketIDs")
+        if let data = try? JSONEncoder().encode(favoriteMarkets) {
+            shared.set(data, forKey: "GanJiFavoriteMarketsData")
+        }
+        // Share the same full market list the homepage renders, not just favorites.
+        if let data = try? JSONEncoder().encode(displayedMarkets) {
+            shared.set(data, forKey: "GanJiHomeMarketsData")
+        }
+        shared.set(selectedAreaCode, forKey: "GanJiSelectedAreaCode")
+        shared.set(selectedAreaDisplayName ?? "", forKey: "GanJiSelectedAreaName")
+        shared.synchronize()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // Destination search: a dedicated location header, prominent input, and structured results.
@@ -1598,6 +1628,9 @@ struct ContentView: View {
             displayedMarkets = MarketCache.load(areaCode: areaCode) ?? MarketStore.load().filter { $0.areaCode == areaCode }
             marketLoadError = displayedMarkets.isEmpty ? "网络请求失败，请稍后重试" : "网络不可用，显示已缓存数据"
         }
+        // The first sync runs before this async fetch completes. Sync again now so
+        // favorites that can only be resolved from the loaded market list reach WidgetKit.
+        syncWidgetHomeData()
     }
 
     private func centerOnUser() {
