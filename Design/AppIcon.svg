@@ -1,14 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-<defs>
- <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFF9E9"/><stop offset="1" stop-color="#F5EBD4"/></linearGradient>
- <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF7B13"/><stop offset="1" stop-color="#F65A0B"/></linearGradient>
- <linearGradient id="ink" x1="0" y1="0" x2="0.7" y2="1"><stop stop-color="#096A55"/><stop offset="1" stop-color="#075044"/></linearGradient>
- <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#A2C54E"/><stop offset="1" stop-color="#709C3A"/></linearGradient>
-</defs>
-<rect width="1024" height="1024" rx="180" fill="url(#paper)"/>
-<circle cx="665" cy="300" r="226" fill="url(#sun)"/>
-<text x="512" y="682" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="510" font-weight="900" fill="url(#ink)" letter-spacing="-22">圩</text>
-<path d="M245 805 Q398 742 555 795 T790 805 L870 838 Q708 894 545 849 T245 870Z" fill="url(#field)"/>
-<path d="M250 868 Q420 819 572 870 T845 861 Q705 955 515 944 Q344 935 250 868Z" fill="url(#ink)"/>
-<path d="M250 866 Q421 820 570 868 T846 860" fill="none" stroke="#F8F0D8" stroke-width="13" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF9ED"/><stop offset="1" stop-color="#F0E7D5"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#286D62"/><stop offset="1" stop-color="#123F3B"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B7CDC0"/><stop offset="1" stop-color="#739D8D"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7C27E"/><stop offset="1" stop-color="#E98B52"/>
+    </linearGradient>
+    <clipPath id="canvas"><rect width="1024" height="1024" rx="180"/></clipPath>
+  </defs>
+  <g clip-path="url(#canvas)">
+    <rect width="1024" height="1024" fill="url(#paper)"/>
+    <circle cx="765" cy="225" r="104" fill="url(#sun)" opacity=".94"/>
+    <path d="M-70 535 Q92 345 245 475 T520 470 T800 430 T1110 505 L1110 860 L-70 860Z" fill="#D7E1D5" opacity=".72"/>
+    <path d="M-60 635 Q105 430 260 570 T520 560 T790 520 T1100 595 L1100 900 L-60 900Z" fill="url(#hill)" opacity=".68"/>
+    <path d="M-40 755 Q150 590 330 710 T620 685 T900 670 T1080 735 L1080 1024 L-40 1024Z" fill="#9BB9AA" opacity=".68"/>
+    <path d="M115 730 Q245 635 375 700 T600 705 Q488 765 365 752 T115 730Z" fill="#F8F2E5" opacity=".92"/>
+    <path d="M225 812 Q400 700 560 766 T850 760" fill="none" stroke="#F8F2E5" stroke-width="17" stroke-linecap="round" opacity=".94"/>
+    <path d="M248 175 C350 93 520 91 651 139" fill="none" stroke="url(#teal)" stroke-width="28" stroke-linecap="round"/>
+    <path d="M228 193 C141 309 152 485 225 608 C287 714 398 780 516 784" fill="none" stroke="url(#teal)" stroke-width="34" stroke-linecap="round"/>
+    <path d="M663 140 Q700 151 730 177" fill="none" stroke="#286D62" stroke-width="10" stroke-linecap="round" opacity=".7"/>
+    <text x="470" y="566" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="430" font-weight="900" fill="#123F3B">圩</text>
+    <g transform="translate(785 355) rotate(3)">
+      <rect x="-46" y="-82" width="92" height="164" rx="15" fill="#B93D32"/>
+      <text x="0" y="-12" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="49" font-weight="800" fill="#FFF4DF">圩</text>
+      <text x="0" y="45" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="49" font-weight="800" fill="#FFF4DF">日</text>
+    </g>
+    <text x="512" y="925" text-anchor="middle" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="2" fill="#123F3B">GanJi</text>
+  </g>
 </svg>
