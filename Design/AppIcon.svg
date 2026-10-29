@@ -1,36 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFF9ED"/><stop offset="1" stop-color="#F0E7D5"/>
-    </linearGradient>
-    <linearGradient id="teal" x1="0" y1="0" x2="0.8" y2="1">
-      <stop offset="0" stop-color="#286D62"/><stop offset="1" stop-color="#123F3B"/>
-    </linearGradient>
-    <linearGradient id="hill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#B7CDC0"/><stop offset="1" stop-color="#739D8D"/>
+    <linearGradient id="paper" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#FFF7E4"/><stop offset="1" stop-color="#F8EED4"/>
     </linearGradient>
     <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F7C27E"/><stop offset="1" stop-color="#E98B52"/>
+      <stop offset="0" stop-color="#FF8B13"/><stop offset="1" stop-color="#F45B08"/>
     </linearGradient>
-    <clipPath id="canvas"><rect width="1024" height="1024" rx="180"/></clipPath>
+    <linearGradient id="ink" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#08705B"/><stop offset="1" stop-color="#075247"/>
+    </linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#91B94B"/><stop offset="1" stop-color="#B0C94C"/>
+    </linearGradient>
+    <clipPath id="tile"><rect width="1024" height="1024" rx="180"/></clipPath>
   </defs>
-  <g clip-path="url(#canvas)">
+  <g clip-path="url(#tile)">
     <rect width="1024" height="1024" fill="url(#paper)"/>
-    <circle cx="765" cy="225" r="104" fill="url(#sun)" opacity=".94"/>
-    <path d="M-70 535 Q92 345 245 475 T520 470 T800 430 T1110 505 L1110 860 L-70 860Z" fill="#D7E1D5" opacity=".72"/>
-    <path d="M-60 635 Q105 430 260 570 T520 560 T790 520 T1100 595 L1100 900 L-60 900Z" fill="url(#hill)" opacity=".68"/>
-    <path d="M-40 755 Q150 590 330 710 T620 685 T900 670 T1080 735 L1080 1024 L-40 1024Z" fill="#9BB9AA" opacity=".68"/>
-    <path d="M115 730 Q245 635 375 700 T600 705 Q488 765 365 752 T115 730Z" fill="#F8F2E5" opacity=".92"/>
-    <path d="M225 812 Q400 700 560 766 T850 760" fill="none" stroke="#F8F2E5" stroke-width="17" stroke-linecap="round" opacity=".94"/>
-    <path d="M248 175 C350 93 520 91 651 139" fill="none" stroke="url(#teal)" stroke-width="28" stroke-linecap="round"/>
-    <path d="M228 193 C141 309 152 485 225 608 C287 714 398 780 516 784" fill="none" stroke="url(#teal)" stroke-width="34" stroke-linecap="round"/>
-    <path d="M663 140 Q700 151 730 177" fill="none" stroke="#286D62" stroke-width="10" stroke-linecap="round" opacity=".7"/>
-    <text x="470" y="566" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="430" font-weight="900" fill="#123F3B">圩</text>
-    <g transform="translate(785 355) rotate(3)">
-      <rect x="-46" y="-82" width="92" height="164" rx="15" fill="#B93D32"/>
-      <text x="0" y="-12" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="49" font-weight="800" fill="#FFF4DF">圩</text>
-      <text x="0" y="45" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="49" font-weight="800" fill="#FFF4DF">日</text>
-    </g>
-    <text x="512" y="925" text-anchor="middle" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="2" fill="#123F3B">GanJi</text>
+    <circle cx="590" cy="305" r="222" fill="url(#sun)"/>
+    <text x="512" y="656" text-anchor="middle" font-family="PingFang SC, STHeiti SC, Noto Sans CJK SC, sans-serif" font-size="490" font-weight="900" fill="url(#ink)" letter-spacing="-18">圩</text>
+    <path d="M210 789 Q365 709 536 739 Q700 767 838 842 L780 900 Q640 827 493 811 Q335 795 210 789Z" fill="url(#field)"/>
+    <path d="M230 814 Q396 789 535 824 Q661 855 760 925 Q631 1000 480 958 Q329 923 230 814Z" fill="url(#ink)"/>
+    <path d="M226 814 Q397 788 535 824 Q660 855 760 925" fill="none" stroke="#FFF4DF" stroke-width="12" stroke-linecap="round"/>
+    <path d="M742 813 Q820 757 905 787 Q882 847 823 875Z" fill="#39824B"/>
   </g>
 </svg>
