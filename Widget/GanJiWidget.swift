@@ -71,53 +71,32 @@ struct MarketProvider: TimelineProvider {
 // Avoid GeometryReader-based image selection in containerBackground: WidgetKit may
 // provide a constrained proposal, which can leave the fallback paper color visible.
 private struct WidgetCanvas: View {
-    let dark: Bool
     @Environment(\.widgetFamily) private var family
 
-    // Square crop for small widgets; wide artwork for medium/large.
-    // widgetAccentedRenderingMode(.fullColor) must sit directly on the Image
-    // (Apple's documented pattern) so accented/vibrant rendering keeps the
-    // photo in colour instead of tinting it into the system material.
-    @ViewBuilder private var artwork: some View {
-        if #available(iOS 18.0, *) {
-            Image(family == .systemSmall ? "HanLi-square" : "HanLi-wide")
-                .resizable()
-                .widgetAccentedRenderingMode(.fullColor)
-                .scaledToFill()
-        } else {
-            Image(family == .systemSmall ? "HanLi-square" : "HanLi-wide")
-                .resizable()
-                .scaledToFill()
-        }
+    private var imageName: String {
+        family == .systemSmall ? "HanLi-square" : "HanLi-wide"
     }
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack {
-                // Opaque paper base. Even if the artwork fails to load, the
-                // canvas stays fully opaque so iOS 26 cannot show its default
-                // translucent widget material through the background.
-                (dark
-                    ? Color(red: 0.04, green: 0.10, blue: 0.13)
-                    : Color(red: 0.97, green: 0.96, blue: 0.91))
-
-                artwork
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .clipped()
-
-                // A subtle ink-paper veil keeps widget text readable without
-                // hiding Han Li or the misty mountain scenery.
-                LinearGradient(
-                    colors: dark
-                        ? [Color.black.opacity(0.34), Color(red: 0.04, green: 0.10, blue: 0.13).opacity(0.30)]
-                        : [Color(red: 0.97, green: 0.96, blue: 0.91).opacity(0.28), Color(red: 0.91, green: 0.94, blue: 0.92).opacity(0.12)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
+            Image(imageName, bundle: .main)
+                .resizable()
+                .scaledToFill()
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.97, green: 0.96, blue: 0.91).opacity(0.16),
+                            Color(red: 0.91, green: 0.94, blue: 0.92).opacity(0.08)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .accessibilityHidden(true)
     }
 }
@@ -201,6 +180,17 @@ private struct PaperCard<Content: View>: View {
     }
 }
 
+private struct WidgetClearContainerBackground: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.containerBackground(for: .widget) { Color.clear }
+        } else {
+            content
+        }
+    }
+}
+
 struct GanJiWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var colorScheme
@@ -214,38 +204,21 @@ struct GanJiWidgetView: View {
     private var secondaryInk: Color { dark ? Color.white.opacity(0.76) : ink.opacity(0.72) }
 
     var body: some View {
-        Group {
-            if entry.isPlaceholder {
-                previewContent
-            } else if #available(iOS 17.0, *) {
-                // iOS 26 may remove or restyle a widget's container background
-                // during Home Screen appearance transitions. Keep the photo in
-                // the actual widget content hierarchy so it is rendered as
-                // ordinary full-colour content, not only as a removable backdrop.
-                ZStack {
-                    WidgetCanvas(dark: dark)
+        ZStack {
+            WidgetCanvas()
+            Group {
+                if entry.isPlaceholder {
+                    previewContent
+                } else {
                     content
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-                // The visual canvas above owns the background. Declare a
-                // transparent WidgetKit background to avoid a second system
-                // material being composited over the photo.
-                .containerBackground(for: .widget) { Color.clear }
-            } else {
-                // iOS 16: containerBackground(for: .widget) is unavailable, so
-                // draw the canvas directly in the view hierarchy.
-                ZStack {
-                    WidgetCanvas(dark: dark)
-                    content
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .unredacted()
+        .modifier(WidgetClearContainerBackground())
     }
 
     private var previewContent: some View {
