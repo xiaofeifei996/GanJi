@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import UIKit
 
 private let ganJiGroupID = "group.com.ganji.diary"
 
@@ -17,17 +18,40 @@ private struct GanJiWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (GanJiWidgetEntry) -> Void) {
-        completion(makeEntry())
+        refreshWidgetPhoto { completion(makeEntry()) }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiWidgetEntry>) -> Void) {
-        let entry = makeEntry()
-        let nextRefresh = Calendar.current.nextDate(
-            after: Date(),
-            matching: DateComponents(hour: 0, minute: 5),
-            matchingPolicy: .nextTime
-        ) ?? Date().addingTimeInterval(3600)
-        completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+        refreshWidgetPhoto {
+            let entry = makeEntry()
+            let nextRefresh = Calendar.current.nextDate(
+                after: Date(),
+                matching: DateComponents(hour: 0, minute: 5),
+                matchingPolicy: .nextTime
+            ) ?? Date().addingTimeInterval(3600)
+            completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+        }
+    }
+
+    /// Download a real market-produce photograph into the shared App Group container.
+    /// The widget uses the last cached image when the network is unavailable.
+    private func refreshWidgetPhoto(completion: @escaping () -> Void) {
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: ganJiGroupID
+        ) else {
+            completion()
+            return
+        }
+        let destination = container.appendingPathComponent("GanJiWidgetMarket.jpg")
+        let url = URL(string: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=85")!
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            defer { completion() }
+            guard error == nil,
+                  let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode),
+                  let data, UIImage(data: data) != nil else { return }
+            try? data.write(to: destination, options: .atomic)
+        }.resume()
     }
 
     private func makeEntry() -> GanJiWidgetEntry {
@@ -64,32 +88,39 @@ private enum WidgetPalette {
 }
 
 private struct WidgetBackdrop: View {
+    private var marketPhoto: UIImage? {
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: ganJiGroupID
+        ) else { return nil }
+        return UIImage(contentsOfFile: container.appendingPathComponent("GanJiWidgetMarket.jpg").path)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack {
+                if let marketPhoto {
+                    Image(uiImage: marketPhoto)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                } else {
+                    LinearGradient(
+                        colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                // A soft ivory wash keeps the existing dark typography legible
+                // while allowing the real produce-market photograph to remain visible.
                 LinearGradient(
                     colors: [
-                        Color(red: 0.97, green: 0.97, blue: 0.89),
-                        Color(red: 0.88, green: 0.93, blue: 0.82),
-                        Color(red: 0.81, green: 0.89, blue: 0.76)
+                        Color(red: 0.98, green: 0.97, blue: 0.91).opacity(0.70),
+                        Color(red: 0.96, green: 0.96, blue: 0.89).opacity(0.42),
+                        WidgetPalette.forest.opacity(0.16)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
-                )
-                Circle()
-                    .fill(WidgetPalette.paper.opacity(0.76))
-                    .frame(width: proxy.size.width * 0.88)
-                    .blur(radius: 1)
-                    .offset(x: proxy.size.width * 0.43, y: -proxy.size.height * 0.43)
-                Circle()
-                    .fill(WidgetPalette.lime.opacity(0.30))
-                    .frame(width: proxy.size.width * 0.72)
-                    .blur(radius: 2)
-                    .offset(x: -proxy.size.width * 0.48, y: proxy.size.height * 0.48)
-                LinearGradient(
-                    colors: [.white.opacity(0.10), .clear, WidgetPalette.forest.opacity(0.035)],
-                    startPoint: .top,
-                    endPoint: .bottom
                 )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
