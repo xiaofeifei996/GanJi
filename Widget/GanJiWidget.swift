@@ -300,13 +300,13 @@ struct GanJiWidget: Widget {
         }
 
         if #available(iOSApplicationExtension 17.0, *) {
-            configuration
+            return configuration
                 .containerBackgroundRemovable(false)
                 .configurationDisplayName("赶集日记")
                 .description("三款东方圩市主题小组件，查看未来三天圩期")
                 .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         } else {
-            configuration
+            return configuration
                 .configurationDisplayName("赶集日记")
                 .description("三款东方圩市主题小组件，查看未来三天圩期")
                 .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
