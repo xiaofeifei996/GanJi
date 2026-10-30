@@ -1,7 +1,7 @@
 name: Build GanJi
 on:
   push:
-    branches: [ main ]
+    branches: [ main, fix/ios26-widget-image-background ]
   workflow_dispatch:
 
 jobs:
