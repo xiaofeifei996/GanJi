@@ -83,31 +83,21 @@ jobs:
           tail -n 50 build.log
           exit "$status"
 
-      - name: Embed App Group entitlements for TrollStore
+      - name: Embed app entitlements for TrollStore
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
-          WIDGET="$APP/PlugIns/GanJiWidget.appex"
           test -d "$APP"
-          test -d "$WIDGET"
-          # The normal build deliberately disables Xcode signing. Without an explicit
-          # ad-hoc signature, CODE_SIGN_ENTITLEMENTS are not embedded in the app/widget,
-          # so TrollStore-installed builds may not get the shared App Group container.
           codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
-          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$WIDGET"
           echo "===== App entitlements ====="
           codesign -d --entitlements :- "$APP" 2>&1 || true
-          echo "===== Widget entitlements ====="
-          codesign -d --entitlements :- "$WIDGET" 2>&1 || true
 
       - name: Package IPA
         run: |
           set -e
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
           ls -la "$APP"
-          ls -la "$APP/PlugIns" || true
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/PlugIns/GanJiWidget.appex/Info.plist"
           rm -rf Payload && mkdir -p Payload
           cp -R "$APP" Payload/
           zip -qry GanJi-unsigned.ipa Payload
