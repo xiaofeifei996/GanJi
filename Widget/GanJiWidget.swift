@@ -197,10 +197,17 @@ struct GanJiWidgetView: View {
         Group {
             if entry.isPlaceholder {
                 previewContent
+            } else if #available(iOS 17.0, *) {
+                // Declare the photo as the widget's container background so
+                // WidgetKit knows which view is the background. Combined with
+                // containerBackgroundRemovable(false) on the widget config,
+                // this keeps the artwork visible on iOS 26's Liquid Glass /
+                // vibrant Home Screen appearance instead of being stripped.
+                content
+                    .containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
             } else {
-                // Draw the photo inside the widget content instead of using
-                // containerBackground, which iOS 26 can remove/replace when
-                // the Home Screen uses the clear/glass widget appearance.
+                // iOS 16: containerBackground(for: .widget) is unavailable, so
+                // draw the canvas directly in the view hierarchy.
                 ZStack {
                     WidgetCanvas(dark: dark)
                     content
@@ -629,6 +636,11 @@ struct GanJiWidget: Widget {
             GanJiWidgetView(entry: entry)
                 .unredacted()
         }
+        // The Han Li artwork IS the widget's content. Mark the container
+        // background as nonremovable so iOS 26's Liquid Glass / vibrant Home
+        // Screen appearance does not strip it (the widget would otherwise be
+        // invisible/blank). iOS 16 ignores this modifier safely.
+        .containerBackgroundRemovable(false)
         .configurationDisplayName("赶集日记 · 田园集市")
         .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
