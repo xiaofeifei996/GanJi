@@ -161,7 +161,7 @@ struct GanJiWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("赶集日记")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 12, weight: .heavy, design: .serif))
                     .tracking(2)
                     .foregroundStyle(WidgetPalette.orange)
                 Spacer()
@@ -214,7 +214,7 @@ struct GanJiWidgetView: View {
             HStack(alignment: .top) {
                 heading("赶集日记", subtitle: "今日圩日 · 未来三天")
                 Spacer()
-                Text(entry.date.formatted(.dateTime.month(.abbreviated).day()))
+                Text(entry.date.formatted(.dateTime.month(.twoDigits).day(.twoDigits).locale(Locale(identifier: "zh_CN"))))
                     .font(.system(size: 12, weight: .bold, design: .serif))
                     .foregroundStyle(WidgetPalette.orange)
             }
@@ -252,7 +252,7 @@ struct GanJiWidgetView: View {
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(WidgetPalette.orange)
             if entry.days.indices.contains(index) {
-                Text(entry.days[index].date.formatted(.dateTime.month().day()))
+                Text(entry.days[index].date.formatted(.dateTime.month(.twoDigits).day(.twoDigits).locale(Locale(identifier: "zh_CN"))))
                     .font(.system(size: 16, weight: .heavy, design: .serif))
                     .foregroundStyle(ink)
             }
