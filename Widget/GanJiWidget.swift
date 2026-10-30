@@ -55,96 +55,23 @@ private enum Palette {
     static let gold = Color(red: 0.91, green: 0.70, blue: 0.39)
 }
 
-// A lightweight, fully local landscape illustration. It works inside WidgetKit
-// without network access and is shared by all three widget families.
+// Shared photo background asset used by all widget families.
 private struct LandscapeBackdrop: View {
     var body: some View {
         GeometryReader { proxy in
-            let size = proxy.size
-            ZStack {
-                LinearGradient(colors: [
-                    Color(red: 0.76, green: 0.83, blue: 0.77),
-                    Color(red: 0.36, green: 0.56, blue: 0.52),
-                    Color(red: 0.07, green: 0.24, blue: 0.25)
-                ], startPoint: .top, endPoint: .bottom)
-
-                Circle()
-                    .fill(Color(red: 1.0, green: 0.85, blue: 0.62).opacity(0.78))
-                    .frame(width: size.width * 0.22)
-                    .blur(radius: 2)
-                    .position(x: size.width * 0.78, y: size.height * 0.23)
-
-                MountainRidge(peak: 0.29, shoulder: 0.53, depth: 0.68)
-                    .fill(Color(red: 0.66, green: 0.75, blue: 0.67).opacity(0.85))
-                MountainRidge(peak: 0.39, shoulder: 0.68, depth: 0.77)
-                    .fill(Color(red: 0.36, green: 0.55, blue: 0.49).opacity(0.92))
-                MountainRidge(peak: 0.52, shoulder: 0.82, depth: 0.85)
-                    .fill(Color(red: 0.13, green: 0.36, blue: 0.34).opacity(0.96))
-
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: size.height * 0.70))
-                    path.addCurve(to: CGPoint(x: size.width, y: size.height * 0.73),
-                                  control1: CGPoint(x: size.width * 0.32, y: size.height * 0.61),
-                                  control2: CGPoint(x: size.width * 0.67, y: size.height * 0.88))
-                    path.addLine(to: CGPoint(x: size.width, y: size.height))
-                    path.addLine(to: CGPoint(x: 0, y: size.height))
-                    path.closeSubpath()
-                }
-                .fill(LinearGradient(colors: [Color(red: 0.48, green: 0.68, blue: 0.64), Palette.deep],
-                                     startPoint: .top, endPoint: .bottom))
-
-                // Small village roofs along the river bank.
-                ForEach(0..<9, id: \.self) { index in
-                    let x = size.width * (0.05 + CGFloat(index) * 0.105)
-                    let y = size.height * (0.69 + CGFloat(index % 3) * 0.035)
-                    VillageHouse()
-                        .fill(Color(red: 0.10, green: 0.23, blue: 0.22).opacity(0.9))
-                        .frame(width: size.width * 0.075, height: size.height * 0.09)
-                        .position(x: x, y: y)
-                }
-
-                LinearGradient(colors: [.clear, Palette.deep.opacity(0.18), Palette.deep.opacity(0.72)],
-                               startPoint: .center, endPoint: .bottom)
-            }
-            .frame(width: size.width, height: size.height)
-            .clipped()
+            Image("GanJiLandscape")
+                .resizable()
+                .scaledToFill()
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, Color.black.opacity(0.12), Color.black.opacity(0.42)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                )
         }
-    }
-}
-
-private struct MountainRidge: Shape {
-    let peak: CGFloat
-    let shoulder: CGFloat
-    let depth: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: rect.height * depth))
-        path.addCurve(to: CGPoint(x: rect.width * 0.46, y: rect.height * peak),
-                      control1: CGPoint(x: rect.width * 0.16, y: rect.height * (peak + 0.12)),
-                      control2: CGPoint(x: rect.width * 0.30, y: rect.height * (peak - 0.08)))
-        path.addCurve(to: CGPoint(x: rect.width, y: rect.height * shoulder),
-                      control1: CGPoint(x: rect.width * 0.66, y: rect.height * (peak + 0.13)),
-                      control2: CGPoint(x: rect.width * 0.82, y: rect.height * (shoulder - 0.10)))
-        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
-        path.addLine(to: CGPoint(x: 0, y: rect.height))
-        path.closeSubpath()
-        return path
-    }
-}
-
-private struct VillageHouse: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.width * 0.05, y: rect.height * 0.42))
-        path.addLine(to: CGPoint(x: rect.width * 0.5, y: rect.height * 0.04))
-        path.addLine(to: CGPoint(x: rect.width * 0.95, y: rect.height * 0.42))
-        path.addLine(to: CGPoint(x: rect.width * 0.84, y: rect.height * 0.42))
-        path.addLine(to: CGPoint(x: rect.width * 0.84, y: rect.height))
-        path.addLine(to: CGPoint(x: rect.width * 0.16, y: rect.height))
-        path.addLine(to: CGPoint(x: rect.width * 0.16, y: rect.height * 0.42))
-        path.closeSubpath()
-        return path
     }
 }
 
