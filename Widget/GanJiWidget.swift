@@ -99,11 +99,22 @@ private struct WidgetBackdrop: View {
         GeometryReader { proxy in
             ZStack {
                 if let marketPhoto {
-                    Image(uiImage: marketPhoto)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
+                    if #available(iOSApplicationExtension 18.0, *) {
+                        Image(uiImage: marketPhoto)
+                            // Preserve photographic color when iOS applies the Home Screen
+                            // tinted/accented widget appearance.
+                            .widgetAccentedRenderingMode(.fullColor)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .clipped()
+                    } else {
+                        Image(uiImage: marketPhoto)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .clipped()
+                    }
                 } else {
                     LinearGradient(
                         colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
