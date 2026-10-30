@@ -218,13 +218,21 @@ struct GanJiWidgetView: View {
             if entry.isPlaceholder {
                 previewContent
             } else if #available(iOS 17.0, *) {
-                // Declare the photo as the widget's container background so
-                // WidgetKit knows which view is the background. Combined with
-                // containerBackgroundRemovable(false) on the widget config,
-                // this keeps the artwork visible on iOS 26's Liquid Glass /
-                // vibrant Home Screen appearance instead of being stripped.
-                content
-                    .containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
+                // iOS 26 may remove or restyle a widget's container background
+                // during Home Screen appearance transitions. Keep the photo in
+                // the actual widget content hierarchy so it is rendered as
+                // ordinary full-colour content, not only as a removable backdrop.
+                ZStack {
+                    WidgetCanvas(dark: dark)
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                // The visual canvas above owns the background. Declare a
+                // transparent WidgetKit background to avoid a second system
+                // material being composited over the photo.
+                .containerBackground(for: .widget) { Color.clear }
             } else {
                 // iOS 16: containerBackground(for: .widget) is unavailable, so
                 // draw the canvas directly in the view hierarchy.
@@ -661,6 +669,9 @@ struct GanJiWidget: Widget {
         // Screen appearance does not strip it (the widget would otherwise be
         // invisible/blank). iOS 16 ignores this modifier safely.
         .containerBackgroundRemovable(false)
+        // Remove the system content inset so WidgetCanvas can cover the full
+        // widget surface on iOS 17+ (including the changed iOS 26 layout).
+        .contentMarginsDisabled()
         .configurationDisplayName("赶集日记 · 田园集市")
         .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
