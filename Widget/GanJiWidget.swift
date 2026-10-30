@@ -66,9 +66,18 @@ private struct Scenery: View {
 
     var body: some View {
         GeometryReader { proxy in
-            Image(backgroundName)
-                .resizable()
-                .scaledToFill()
+            Group {
+                if #available(iOSApplicationExtension 18.0, *) {
+                    Image(backgroundName)
+                        .resizable()
+                        .widgetAccentedRenderingMode(.fullColor)
+                        .scaledToFill()
+                } else {
+                    Image(backgroundName)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
                 .overlay {
@@ -304,6 +313,7 @@ struct GanJiWidget: Widget {
         if #available(iOSApplicationExtension 17.0, *) {
             return configuration
                 .containerBackgroundRemovable(false)
+                .contentMarginsDisabled()
                 .configurationDisplayName("赶集日记")
                 .description("三款东方圩市主题小组件，查看未来三天圩期")
                 .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
