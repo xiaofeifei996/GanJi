@@ -35,6 +35,27 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSLocationWhenInUseUsageDescription: 用于计算各集市与你的距离
+    dependencies:
+      - target: GanJiWidget
+        embed: true
     scheme:
       gatherCoverageData: false
       testTargets: []
+  GanJiWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ganji.diary.widget
+        CODE_SIGN_ENTITLEMENTS: Widget/GanJiWidget.entitlements
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: 赶集日记小组件
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
