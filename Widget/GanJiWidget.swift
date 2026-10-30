@@ -74,91 +74,31 @@ private struct WidgetCanvas: View {
     let dark: Bool
     @Environment(\.widgetFamily) private var family
 
-    private var paper: Color {
-        dark ? Color(red: 0.055, green: 0.12, blue: 0.14) : Color(red: 0.97, green: 0.96, blue: 0.91)
-    }
-
     var body: some View {
-        ZStack(alignment: .bottom) {
-            LinearGradient(
-                colors: dark
-                    ? [Color(red: 0.07, green: 0.16, blue: 0.19), Color(red: 0.10, green: 0.22, blue: 0.22), Color(red: 0.09, green: 0.20, blue: 0.17)]
-                    : [Color(red: 0.88, green: 0.94, blue: 0.96), Color(red: 0.97, green: 0.96, blue: 0.90), Color(red: 0.88, green: 0.92, blue: 0.82)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+        GeometryReader { proxy in
+            ZStack {
+                // Use the existing Han Li artwork shipped with the widget target.
+                // Square crop for small widgets; wide artwork for medium/large.
+                Image(family == .systemSmall ? "HanLi-square" : "HanLi-wide")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
 
-            Circle()
-                .fill(dark ? Color(red: 0.94, green: 0.68, blue: 0.39).opacity(0.30) : Color(red: 1.0, green: 0.76, blue: 0.42).opacity(0.78))
-                .frame(width: family == .systemSmall ? 30 : 48, height: family == .systemSmall ? 30 : 48)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, family == .systemSmall ? 30 : 22)
-                .padding(.trailing, 24)
-
-            Ellipse()
-                .fill(dark ? Color(red: 0.13, green: 0.31, blue: 0.29) : Color(red: 0.69, green: 0.82, blue: 0.74))
-                .frame(width: 420, height: family == .systemSmall ? 78 : 116)
-                .offset(x: -68, y: 28)
-
-            Ellipse()
-                .fill(dark ? Color(red: 0.10, green: 0.26, blue: 0.22) : Color(red: 0.48, green: 0.68, blue: 0.53))
-                .frame(width: 390, height: family == .systemSmall ? 65 : 92)
-                .offset(x: 110, y: 35)
-
-            Ellipse()
-                .fill(dark ? Color(red: 0.07, green: 0.21, blue: 0.18) : Color(red: 0.42, green: 0.63, blue: 0.49))
-                .frame(width: 420, height: family == .systemSmall ? 35 : 58)
-                .offset(x: -10, y: 43)
-
-            // More visible Lingnan village scenery, placed in the lower
-            // background band so the existing text/card layout stays unchanged.
-            HStack(alignment: .bottom, spacing: family == .systemSmall ? 3 : 6) {
-                villageShape(width: family == .systemSmall ? 12 : 22,
-                             height: family == .systemSmall ? 15 : 28)
-                villageShape(width: family == .systemSmall ? 16 : 30,
-                             height: family == .systemSmall ? 20 : 38)
-                villageShape(width: family == .systemSmall ? 11 : 21,
-                             height: family == .systemSmall ? 14 : 25)
-                if family != .systemSmall {
-                    villageShape(width: 25, height: 31)
-                    villageShape(width: 18, height: 24)
-                }
+                // A subtle ink-paper veil keeps widget text readable without
+                // hiding Han Li or the misty mountain scenery.
+                LinearGradient(
+                    colors: dark
+                        ? [Color.black.opacity(0.34), Color(red: 0.04, green: 0.10, blue: 0.13).opacity(0.30)]
+                        : [Color(red: 0.97, green: 0.96, blue: 0.91).opacity(0.28), Color(red: 0.91, green: 0.94, blue: 0.92).opacity(0.12)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             }
-            .opacity(dark ? 0.72 : 0.92)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(.leading, family == .systemSmall ? 12 : 22)
-            .padding(.bottom, family == .systemSmall ? 4 : 8)
-
-            if family != .systemSmall {
-                Capsule()
-                    .fill(dark ? Color(red: 0.24, green: 0.42, blue: 0.42).opacity(0.65) : Color(red: 0.77, green: 0.88, blue: 0.87).opacity(0.88))
-                    .frame(width: 235, height: 9)
-                    .rotationEffect(.degrees(-4))
-                    .offset(x: -38, y: -48)
-            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
         }
-        .overlay(alignment: .top) {
-            LinearGradient(colors: [paper.opacity(dark ? 0.14 : 0.26), .clear], startPoint: .top, endPoint: .bottom)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
         .accessibilityHidden(true)
-    }
-
-    private func villageShape(width: CGFloat, height: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            Triangle()
-                .fill(Color(red: 0.68, green: 0.34, blue: 0.22))
-                .frame(width: width + 7, height: height * 0.30)
-            Rectangle()
-                .fill(dark ? Color(red: 0.73, green: 0.77, blue: 0.66) : Color(red: 0.98, green: 0.93, blue: 0.80))
-                .frame(width: width, height: height * 0.70)
-                .overlay(alignment: .bottom) {
-                    Rectangle()
-                        .fill(Color(red: 0.34, green: 0.49, blue: 0.43))
-                        .frame(width: max(4, width * 0.20), height: height * 0.28)
-                }
-        }
     }
 }
 
