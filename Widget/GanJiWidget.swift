@@ -195,25 +195,14 @@ struct GanJiWidgetView: View {
 
     var body: some View {
         Group {
-            // Keep WidgetKit gallery and first-add previews independent of the
-            // richer production layout. This path uses only basic SwiftUI views.
             if entry.isPlaceholder {
                 previewContent
-            } else if #available(iOS 17.0, *) {
-                content
-                    .containerBackground(for: .widget) { WidgetCanvas(dark: dark) }
             } else {
-                // iOS 16: draw the same illustrated canvas behind the same
-                // family-specific layouts used on newer systems. Since
-                // containerBackground(for: .widget) is unavailable here,
-                // place the canvas directly in the widget's view hierarchy.
+                // Draw the photo inside the widget content instead of using
+                // containerBackground, which iOS 26 can remove/replace when
+                // the Home Screen uses the clear/glass widget appearance.
                 content
                     .background {
-                        // Use a GeometryReader inside background so the
-                        // decorative canvas never contributes its 390–420 pt
-                        // illustration dimensions to the widget's layout size.
-                        // A ZStack here can expand past small/medium widget
-                        // bounds on iOS 16 and crop the leading content.
                         GeometryReader { proxy in
                             WidgetCanvas(dark: dark)
                                 .frame(width: proxy.size.width, height: proxy.size.height)
