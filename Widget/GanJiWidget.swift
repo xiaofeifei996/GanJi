@@ -105,6 +105,22 @@ private struct WidgetArtwork: View {
     }
 }
 
+
+// Keep iOS 15/16 compatibility while using WidgetKit's managed background on iOS 17+.
+private struct WidgetBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.containerBackground(for: .widget) {
+                WidgetArtwork()
+            }
+        } else {
+            content.background {
+                WidgetArtwork()
+            }
+        }
+    }
+}
+
 // MARK: - Widget view
 
 struct GanJiWidgetView: View {
@@ -131,9 +147,7 @@ struct GanJiWidgetView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .unredacted()
-        .containerBackground(for: .widget) {
-            WidgetArtwork()
-        }
+        .modifier(WidgetBackgroundModifier())
     }
 
     private func marketNames(_ index: Int, short: Bool = false) -> String {
