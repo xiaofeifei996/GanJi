@@ -295,12 +295,22 @@ struct GanJiWidgetView: View {
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
+        let configuration = StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
             GanJiWidgetView(entry: entry)
         }
-        .configurationDisplayName("赶集日记")
-        .description("三款东方圩市主题小组件，查看未来三天圩期")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+
+        if #available(iOSApplicationExtension 17.0, *) {
+            configuration
+                .containerBackgroundRemovable(false)
+                .configurationDisplayName("赶集日记")
+                .description("三款东方圩市主题小组件，查看未来三天圩期")
+                .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        } else {
+            configuration
+                .configurationDisplayName("赶集日记")
+                .description("三款东方圩市主题小组件，查看未来三天圩期")
+                .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        }
     }
 }
 
