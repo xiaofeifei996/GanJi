@@ -167,7 +167,7 @@ private struct GanJiWidgetView: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 8)
-            .background(.white.opacity(0.60), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(.white.opacity(0.55), lineWidth: 1))
         }
     }
@@ -307,6 +307,10 @@ private struct GanJiWidgetView: View {
                     .foregroundStyle(WidgetPalette.secondary)
             }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(.white.opacity(0.48), lineWidth: 1))
     }
 
     private func agendaCard(title: String, subtitle: String, markets: [Market], tint: Color) -> some View {
@@ -340,7 +344,7 @@ private struct GanJiWidgetView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(.white.opacity(0.57), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(.white.opacity(0.58), lineWidth: 1))
     }
 }
