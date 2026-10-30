@@ -43,7 +43,7 @@ private struct GanJiWidgetProvider: TimelineProvider {
             return
         }
         let destination = container.appendingPathComponent("GanJiWidgetMarket.jpg")
-        let url = URL(string: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1200&q=85")!
+        let url = URL(string: "https://images.unsplash.com/photo-1586480185285-9e602c969a95?auto=format&fit=crop&w=1400&q=88")!
         URLSession.shared.dataTask(with: url) { data, response, error in
             defer { completion() }
             guard error == nil,
@@ -76,15 +76,15 @@ private struct GanJiWidgetProvider: TimelineProvider {
 }
 
 private enum WidgetPalette {
-    static let forest = Color(red: 0.10, green: 0.31, blue: 0.23)
-    static let leaf = Color(red: 0.24, green: 0.53, blue: 0.37)
+    static let forest = Color.white
+    static let leaf = Color(red: 0.72, green: 0.91, blue: 0.66)
     static let lime = Color(red: 0.78, green: 0.87, blue: 0.57)
-    static let paper = Color(red: 0.97, green: 0.96, blue: 0.88)
-    static let ink = Color(red: 0.12, green: 0.19, blue: 0.16)
-    static let secondary = Color(red: 0.39, green: 0.47, blue: 0.41)
+    static let paper = Color.white
+    static let ink = Color.white
+    static let secondary = Color.white.opacity(0.88)
     static let orange = Color(red: 0.88, green: 0.43, blue: 0.20)
     static let blue = Color(red: 0.30, green: 0.48, blue: 0.61)
-    static let line = Color(red: 0.78, green: 0.82, blue: 0.73)
+    static let line = Color.white.opacity(0.72)
 }
 
 private struct WidgetBackdrop: View {
@@ -111,13 +111,12 @@ private struct WidgetBackdrop: View {
                         endPoint: .bottomTrailing
                     )
                 }
-                // A soft ivory wash keeps the existing dark typography legible
-                // while allowing the real produce-market photograph to remain visible.
+                // A restrained dark wash keeps white text legible while preserving the real vendor photograph.
                 LinearGradient(
                     colors: [
-                        Color(red: 0.98, green: 0.97, blue: 0.91).opacity(0.70),
-                        Color(red: 0.96, green: 0.96, blue: 0.89).opacity(0.42),
-                        WidgetPalette.forest.opacity(0.16)
+                        Color.black.opacity(0.42),
+                        Color.black.opacity(0.18),
+                        Color.black.opacity(0.52)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
