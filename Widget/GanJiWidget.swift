@@ -74,14 +74,34 @@ private struct WidgetCanvas: View {
     let dark: Bool
     @Environment(\.widgetFamily) private var family
 
+    // Square crop for small widgets; wide artwork for medium/large.
+    // widgetAccentedRenderingMode(.fullColor) must sit directly on the Image
+    // (Apple's documented pattern) so accented/vibrant rendering keeps the
+    // photo in colour instead of tinting it into the system material.
+    @ViewBuilder private var artwork: some View {
+        if #available(iOS 18.0, *) {
+            Image(family == .systemSmall ? "HanLi-square" : "HanLi-wide")
+                .resizable()
+                .widgetAccentedRenderingMode(.fullColor)
+                .scaledToFill()
+        } else {
+            Image(family == .systemSmall ? "HanLi-square" : "HanLi-wide")
+                .resizable()
+                .scaledToFill()
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                // Use the existing Han Li artwork shipped with the widget target.
-                // Square crop for small widgets; wide artwork for medium/large.
-                Image(family == .systemSmall ? "HanLi-square" : "HanLi-wide")
-                    .resizable()
-                    .scaledToFill()
+                // Opaque paper base. Even if the artwork fails to load, the
+                // canvas stays fully opaque so iOS 26 cannot show its default
+                // translucent widget material through the background.
+                (dark
+                    ? Color(red: 0.04, green: 0.10, blue: 0.13)
+                    : Color(red: 0.97, green: 0.96, blue: 0.91))
+
+                artwork
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .clipped()
 
