@@ -430,7 +430,7 @@ struct GanJiWidgetView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
-                    LandscapeMiniature()
+                    EmptyView()
                         .frame(height: 42)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(alignment: .bottomLeading) {
@@ -606,7 +606,7 @@ struct GanJiWidgetView: View {
                         .foregroundColor(vermilion)
                 }
                 Spacer(minLength: 0)
-                LandscapeMiniature()
+                EmptyView()
                     .frame(width: 94, height: 72)
                     .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous)
