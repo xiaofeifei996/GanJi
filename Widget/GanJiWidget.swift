@@ -278,7 +278,6 @@ struct GanJiWidget: Widget {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
             GanJiWidgetView(entry: entry)
                 .background(Color.white)
-                .containerBackground(Color.white, for: .widget)
         }
         .configurationDisplayName("赶集日记")
         .description("查看今天、明天和后天的赶集安排")
