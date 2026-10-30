@@ -54,9 +54,19 @@ private enum Ink {
 }
 
 private struct Scenery: View {
+    @Environment(\.widgetFamily) private var family
+
+    private var backgroundName: String {
+        switch family {
+        case .systemSmall: return "WidgetBackground_Small"
+        case .systemMedium: return "WidgetBackground_Medium"
+        default: return "WidgetBackground_Large"
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
-            Image("WidgetScenery")
+            Image(backgroundName)
                 .resizable()
                 .scaledToFill()
                 .frame(width: proxy.size.width, height: proxy.size.height)

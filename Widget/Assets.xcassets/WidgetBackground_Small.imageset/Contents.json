@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "WidgetBackground_Small.jpg",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
