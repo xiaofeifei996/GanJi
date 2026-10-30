@@ -21,9 +21,6 @@ targets:
     sources:
       - path: GanJi
       - path: Shared
-    dependencies:
-      - target: GanJiWidget
-        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ganji.diary
@@ -41,21 +38,3 @@ targets:
     scheme:
       gatherCoverageData: false
       testTargets: []
-  GanJiWidget:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: Widget
-      - path: Shared
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ganji.diary.widget
-        CODE_SIGN_ENTITLEMENTS: Widget/GanJiWidget.entitlements
-    info:
-      path: Widget/Info.plist
-      properties:
-        CFBundleDisplayName: 赶集日记
-        CFBundleShortVersionString: "$(MARKETING_VERSION)"
-        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
