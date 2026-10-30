@@ -54,7 +54,7 @@ private enum Ink {
 }
 
 private struct Scenery: View {
-    @Environment(\.widgetFamily) private var family
+    let family: WidgetFamily
 
     private var backgroundName: String {
         switch family {
@@ -88,11 +88,13 @@ private struct Scenery: View {
 }
 
 private struct SceneryBackground: ViewModifier {
+    let family: WidgetFamily
+
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
-            content.containerBackground(for: .widget) { Scenery() }
+            content.containerBackground(for: .widget) { Scenery(family: family) }
         } else {
-            content.background(Scenery())
+            content.background(Scenery(family: family))
         }
     }
 }
@@ -110,7 +112,7 @@ struct GanJiWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .modifier(SceneryBackground())
+        .modifier(SceneryBackground(family: family))
         .unredacted()
     }
 
