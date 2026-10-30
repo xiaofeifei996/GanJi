@@ -41,15 +41,111 @@ struct MarketProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (GanJiEntry) -> Void) { completion(makeEntry(Date())) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiEntry>) -> Void) {
         let now = Date()
-        completion(Timeline(entries: [makeEntry(now)], policy: .after(Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now.addingTimeInterval(3600))))
+        let next = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now.addingTimeInterval(3600)
+        completion(Timeline(entries: [makeEntry(now)], policy: .after(next)))
     }
 }
 
-private enum Ink {
-    static let gold = Color(red: 0.91, green: 0.72, blue: 0.40)
-    static let ivory = Color(red: 0.98, green: 0.95, blue: 0.86)
-    static let pale = Color(red: 0.86, green: 0.85, blue: 0.76)
-    static let cinnabar = Color(red: 0.72, green: 0.24, blue: 0.17)
+private enum Palette {
+    static let cream = Color(red: 0.98, green: 0.95, blue: 0.86)
+    static let mist = Color(red: 0.83, green: 0.88, blue: 0.82)
+    static let jade = Color(red: 0.18, green: 0.39, blue: 0.34)
+    static let deep = Color(red: 0.035, green: 0.15, blue: 0.16)
+    static let cinnabar = Color(red: 0.78, green: 0.27, blue: 0.18)
+    static let gold = Color(red: 0.91, green: 0.70, blue: 0.39)
+}
+
+// A lightweight, fully local landscape illustration. It works inside WidgetKit
+// without network access and is shared by all three widget families.
+private struct LandscapeBackdrop: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let size = proxy.size
+            ZStack {
+                LinearGradient(colors: [
+                    Color(red: 0.76, green: 0.83, blue: 0.77),
+                    Color(red: 0.36, green: 0.56, blue: 0.52),
+                    Color(red: 0.07, green: 0.24, blue: 0.25)
+                ], startPoint: .top, endPoint: .bottom)
+
+                Circle()
+                    .fill(Color(red: 1.0, green: 0.85, blue: 0.62).opacity(0.78))
+                    .frame(width: size.width * 0.22)
+                    .blur(radius: 2)
+                    .position(x: size.width * 0.78, y: size.height * 0.23)
+
+                MountainRidge(peak: 0.29, shoulder: 0.53, depth: 0.68)
+                    .fill(Color(red: 0.66, green: 0.75, blue: 0.67).opacity(0.85))
+                MountainRidge(peak: 0.39, shoulder: 0.68, depth: 0.77)
+                    .fill(Color(red: 0.36, green: 0.55, blue: 0.49).opacity(0.92))
+                MountainRidge(peak: 0.52, shoulder: 0.82, depth: 0.85)
+                    .fill(Color(red: 0.13, green: 0.36, blue: 0.34).opacity(0.96))
+
+                Path { path in
+                    path.move(to: CGPoint(x: 0, y: size.height * 0.70))
+                    path.addCurve(to: CGPoint(x: size.width, y: size.height * 0.73),
+                                  control1: CGPoint(x: size.width * 0.32, y: size.height * 0.61),
+                                  control2: CGPoint(x: size.width * 0.67, y: size.height * 0.88))
+                    path.addLine(to: CGPoint(x: size.width, y: size.height))
+                    path.addLine(to: CGPoint(x: 0, y: size.height))
+                    path.closeSubpath()
+                }
+                .fill(LinearGradient(colors: [Color(red: 0.48, green: 0.68, blue: 0.64), Palette.deep],
+                                     startPoint: .top, endPoint: .bottom))
+
+                // Small village roofs along the river bank.
+                ForEach(0..<9, id: \.self) { index in
+                    let x = size.width * (0.05 + CGFloat(index) * 0.105)
+                    let y = size.height * (0.69 + CGFloat(index % 3) * 0.035)
+                    VillageHouse()
+                        .fill(Color(red: 0.10, green: 0.23, blue: 0.22).opacity(0.9))
+                        .frame(width: size.width * 0.075, height: size.height * 0.09)
+                        .position(x: x, y: y)
+                }
+
+                LinearGradient(colors: [.clear, Palette.deep.opacity(0.18), Palette.deep.opacity(0.72)],
+                               startPoint: .center, endPoint: .bottom)
+            }
+            .frame(width: size.width, height: size.height)
+            .clipped()
+        }
+    }
+}
+
+private struct MountainRidge: Shape {
+    let peak: CGFloat
+    let shoulder: CGFloat
+    let depth: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: rect.height * depth))
+        path.addCurve(to: CGPoint(x: rect.width * 0.46, y: rect.height * peak),
+                      control1: CGPoint(x: rect.width * 0.16, y: rect.height * (peak + 0.12)),
+                      control2: CGPoint(x: rect.width * 0.30, y: rect.height * (peak - 0.08)))
+        path.addCurve(to: CGPoint(x: rect.width, y: rect.height * shoulder),
+                      control1: CGPoint(x: rect.width * 0.66, y: rect.height * (peak + 0.13)),
+                      control2: CGPoint(x: rect.width * 0.82, y: rect.height * (shoulder - 0.10)))
+        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        path.addLine(to: CGPoint(x: 0, y: rect.height))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct VillageHouse: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.width * 0.05, y: rect.height * 0.42))
+        path.addLine(to: CGPoint(x: rect.width * 0.5, y: rect.height * 0.04))
+        path.addLine(to: CGPoint(x: rect.width * 0.95, y: rect.height * 0.42))
+        path.addLine(to: CGPoint(x: rect.width * 0.84, y: rect.height * 0.42))
+        path.addLine(to: CGPoint(x: rect.width * 0.84, y: rect.height))
+        path.addLine(to: CGPoint(x: rect.width * 0.16, y: rect.height))
+        path.addLine(to: CGPoint(x: rect.width * 0.16, y: rect.height * 0.42))
+        path.closeSubpath()
+        return path
+    }
 }
 
 struct GanJiWidgetView: View {
@@ -66,9 +162,10 @@ struct GanJiWidgetView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .unredacted()
+        .modifier(WidgetBackgroundStyle(background: LandscapeBackdrop()))
     }
 
-    private func dateText(_ date: Date, style: Date.FormatStyle.DateStyle = .numeric) -> String {
+    private func dateText(_ date: Date) -> String {
         date.formatted(.dateTime.month(.twoDigits).day(.twoDigits).locale(Locale(identifier: "zh_CN")))
     }
 
@@ -83,170 +180,191 @@ struct GanJiWidgetView: View {
     }
 
     private func dayTitle(_ index: Int) -> String {
-        ["今日", "明日", "后日"].indices.contains(index) ? ["今日", "明日", "后日"][index] : "日期"
+        ["今日", "明日", "后日"][index]
     }
 
     private var pocketCalendar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center) {
+            HStack {
                 Text("赶集日记")
-                    .font(.system(size: 10, weight: .black, design: .serif))
-                    .tracking(2)
+                    .font(.system(size: 11, weight: .black, design: .serif))
+                    .tracking(1.5)
                 Spacer()
-                Circle().fill(Ink.gold).frame(width: 5, height: 5)
                 Text("圩历")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 9, weight: .bold))
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Palette.cinnabar, in: Capsule())
             }
-            .foregroundStyle(Ink.gold)
+            .foregroundStyle(Palette.cream)
 
-            Spacer(minLength: 7)
+            Spacer(minLength: 3)
 
             Text(entry.date.formatted(.dateTime.day().locale(Locale(identifier: "zh_CN"))))
-                .font(.system(size: 43, weight: .regular, design: .serif))
-                .foregroundStyle(Ink.ivory)
+                .font(.system(size: 48, weight: .regular, design: .serif))
+                .foregroundStyle(.white)
                 .minimumScaleFactor(0.7)
                 .lineLimit(1)
 
             Text(weekday(entry.date) + " · " + dateText(entry.date))
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Ink.pale)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Palette.mist)
 
-            Spacer(minLength: 7)
+            Spacer(minLength: 5)
 
-            Rectangle().fill(Ink.gold.opacity(0.8)).frame(height: 1)
-            Text(marketText(0, limit: 2))
-                .font(.system(size: 12, weight: .bold, design: .serif))
-                .foregroundStyle(Ink.ivory)
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
-                .padding(.top, 7)
+            HStack(spacing: 5) {
+                Circle().fill(Palette.gold).frame(width: 5, height: 5)
+                Text(marketText(0, limit: 2))
+                    .font(.system(size: 10, weight: .bold, design: .serif))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.deep.opacity(0.62), in: RoundedRectangle(cornerRadius: 10))
         }
-        .padding(13)
+        .padding(12)
     }
 
     private var horizonCalendar: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("山河圩历")
                         .font(.system(size: 17, weight: .bold, design: .serif))
-                        .foregroundStyle(Ink.ivory)
+                        .foregroundStyle(.white)
                     Text("把好日子，赶进生活里")
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(Ink.pale)
+                        .foregroundStyle(Palette.mist)
                 }
                 Spacer()
                 Text(dateText(entry.date))
                     .font(.system(size: 12, weight: .bold, design: .serif))
-                    .foregroundStyle(Ink.gold)
+                    .foregroundStyle(Palette.cream)
             }
 
-            HStack(alignment: .top, spacing: 0) {
+            HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { index in
-                    if index > 0 {
-                        Rectangle().fill(Ink.gold.opacity(0.42)).frame(width: 1, height: 61)
-                            .padding(.horizontal, 9)
-                    }
                     VStack(alignment: .leading, spacing: 5) {
                         Text(dayTitle(index))
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Ink.gold)
+                            .foregroundStyle(Palette.gold)
                         if entry.days.indices.contains(index) {
                             Text(entry.days[index].date.formatted(.dateTime.day().locale(Locale(identifier: "zh_CN"))))
-                                .font(.system(size: 23, weight: .regular, design: .serif))
-                                .foregroundStyle(Ink.ivory)
+                                .font(.system(size: 25, weight: .regular, design: .serif))
+                                .foregroundStyle(.white)
                         }
                         Text(marketText(index, limit: 2))
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Ink.pale)
+                            .foregroundStyle(Palette.cream)
                             .lineLimit(2)
                             .minimumScaleFactor(0.72)
+                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(9)
+                    .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+                    .background(Palette.deep.opacity(index == 0 ? 0.76 : 0.52),
+                                in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12)
+                        .stroke(Palette.cream.opacity(index == 0 ? 0.32 : 0.14), lineWidth: 1))
                 }
             }
         }
-        .padding(14)
+        .padding(13)
     }
 
     private var longScroll: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("赶集长卷")
                         .font(.system(size: 21, weight: .bold, design: .serif))
-                        .foregroundStyle(Ink.ivory)
+                        .foregroundStyle(.white)
                     Text("今日有圩 · 三日行程")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Ink.pale)
+                        .foregroundStyle(Palette.mist)
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: 1) {
                     Text(entry.date.formatted(.dateTime.day().locale(Locale(identifier: "zh_CN"))))
                         .font(.system(size: 31, weight: .regular, design: .serif))
-                        .foregroundStyle(Ink.gold)
+                        .foregroundStyle(Palette.cream)
                     Text(entry.date.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_CN"))))
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(Ink.pale)
+                        .foregroundStyle(Palette.mist)
                 }
             }
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
-                    Capsule().fill(Ink.cinnabar).frame(width: 17, height: 4)
+                    Capsule().fill(Palette.cinnabar).frame(width: 17, height: 4)
                     Text("今日主场")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Ink.gold)
+                        .foregroundStyle(Palette.gold)
                 }
                 Text(marketText(0, limit: 5))
-                    .font(.system(size: 24, weight: .bold, design: .serif))
-                    .foregroundStyle(Ink.ivory)
+                    .font(.system(size: 23, weight: .bold, design: .serif))
+                    .foregroundStyle(.white)
                     .lineLimit(2)
                     .minimumScaleFactor(0.68)
                 Text(entry.days.first?.markets.isEmpty == false ? "择一处好圩，慢慢逛一程" : "今天暂无收藏集市开圩")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Ink.pale)
+                    .foregroundStyle(Palette.cream)
             }
-            .padding(.vertical, 9)
-            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.deep.opacity(0.64), in: RoundedRectangle(cornerRadius: 13))
 
             HStack(spacing: 0) {
                 ForEach(1...2, id: \.self) { index in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(dayTitle(index))
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Ink.gold)
+                            .foregroundStyle(Palette.gold)
                         Text(marketText(index, limit: 4))
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Ink.ivory)
+                            .foregroundStyle(.white)
                             .lineLimit(2)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     if index == 1 {
-                        Rectangle().fill(Ink.gold.opacity(0.35)).frame(width: 1, height: 34)
+                        Rectangle().fill(Palette.cream.opacity(0.35)).frame(width: 1, height: 34)
                             .padding(.horizontal, 12)
                     }
                 }
             }
-
             Spacer(minLength: 0)
             HStack {
                 Text("依照你的收藏集市整理")
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(Ink.pale.opacity(0.9))
+                    .foregroundStyle(Palette.mist)
                 Spacer()
                 Text("山水有期 · 赶集有时")
                     .font(.system(size: 9, weight: .semibold, design: .serif))
-                    .foregroundStyle(Ink.gold)
+                    .foregroundStyle(Palette.cream)
             }
         }
-        .padding(15)
+        .padding(14)
+    }
+}
+
+private struct WidgetBackgroundStyle<Background: View>: ViewModifier {
+    let background: Background
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            content.containerBackground(for: .widget) { background }
+        } else {
+            content.background(background)
+        }
     }
 }
 
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
+
     var body: some WidgetConfiguration {
         let configuration = StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
             GanJiWidgetView(entry: entry)
