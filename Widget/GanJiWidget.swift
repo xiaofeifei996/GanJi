@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Widget data
 
-private struct WidgetDay: Identifiable {
+struct WidgetDay: Identifiable {
     let date: Date
     let markets: [String]
     var id: Date { date }
