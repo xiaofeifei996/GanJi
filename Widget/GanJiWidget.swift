@@ -78,26 +78,22 @@ private struct WidgetCanvas: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            Image(imageName, bundle: .main)
-                .resizable()
-                .scaledToFill()
-                .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
-                .overlay {
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.97, green: 0.96, blue: 0.91).opacity(0.16),
-                            Color(red: 0.91, green: 0.94, blue: 0.92).opacity(0.08)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .accessibilityHidden(true)
+        Image(imageName, bundle: .main)
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .overlay {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.97, green: 0.96, blue: 0.91).opacity(0.16),
+                        Color(red: 0.91, green: 0.94, blue: 0.92).opacity(0.08)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .accessibilityHidden(true)
     }
 }
 
