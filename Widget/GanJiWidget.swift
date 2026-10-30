@@ -53,51 +53,6 @@ private enum Ink {
     static let cinnabar = Color(red: 0.72, green: 0.24, blue: 0.17)
 }
 
-private struct Scenery: View {
-    let family: WidgetFamily
-
-    private var backgroundName: String {
-        switch family {
-        case .systemSmall: return "WidgetBackground_Small"
-        case .systemMedium: return "WidgetBackground_Medium"
-        default: return "WidgetBackground_Large"
-        }
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            Group {
-                if #available(iOSApplicationExtension 18.0, *) {
-                    Image(backgroundName)
-                        .resizable()
-                        .widgetAccentedRenderingMode(.fullColor)
-                        .scaledToFill()
-                } else {
-                    Image(backgroundName)
-                        .resizable()
-                        .scaledToFill()
-                }
-            }
-                .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
-
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-private struct SceneryBackground: ViewModifier {
-    let family: WidgetFamily
-
-    func body(content: Content) -> some View {
-        if #available(iOS 17.0, *) {
-            content.containerBackground(for: .widget) { Scenery(family: family) }
-        } else {
-            content.background(Scenery(family: family))
-        }
-    }
-}
-
 struct GanJiWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: GanJiEntry
@@ -111,7 +66,6 @@ struct GanJiWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .modifier(SceneryBackground(family: family))
         .unredacted()
     }
 
@@ -302,7 +256,6 @@ struct GanJiWidget: Widget {
 
         if #available(iOSApplicationExtension 17.0, *) {
             return configuration
-                .containerBackgroundRemovable(false)
                 .contentMarginsDisabled()
                 .configurationDisplayName("赶集日记")
                 .description("三款东方圩市主题小组件，查看未来三天圩期")
