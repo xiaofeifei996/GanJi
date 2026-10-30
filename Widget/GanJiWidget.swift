@@ -249,7 +249,7 @@ struct GanJiWidgetView: View {
             .background(Ink.dark.opacity(0.42), in: RoundedRectangle(cornerRadius: 13))
 
             HStack(spacing: 0) {
-                for index in 1...2 {
+                ForEach(1...2, id: \.self) { index in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(dayTitle(index))
                             .font(.system(size: 10, weight: .bold))
