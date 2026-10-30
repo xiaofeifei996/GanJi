@@ -657,24 +657,31 @@ struct GanJiWidgetView: View {
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
+        let configuration = StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
             // Apply this at the WidgetKit configuration boundary as well as in
             // the view body. WidgetKit's placeholder redaction can be injected
             // above the view's own layout hierarchy while the timeline is pending.
             GanJiWidgetView(entry: entry)
                 .unredacted()
         }
-        // The Han Li artwork IS the widget's content. Mark the container
-        // background as nonremovable so iOS 26's Liquid Glass / vibrant Home
-        // Screen appearance does not strip it (the widget would otherwise be
-        // invisible/blank). iOS 16 ignores this modifier safely.
-        .containerBackgroundRemovable(false)
-        // Remove the system content inset so WidgetCanvas can cover the full
-        // widget surface on iOS 17+ (including the changed iOS 26 layout).
-        .contentMarginsDisabled()
-        .configurationDisplayName("赶集日记 · 田园集市")
-        .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+
+        if #available(iOSApplicationExtension 17.0, *) {
+            // On iOS 17+, disable system insets and background removal. The
+            // artwork is drawn in the widget content hierarchy for iOS 26,
+            // while the declared container background itself stays transparent.
+            configuration
+                .containerBackgroundRemovable(false)
+                .contentMarginsDisabled()
+                .configurationDisplayName("赶集日记 · 田园集市")
+                .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
+                .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        } else {
+            // Keep the iOS 16 configuration free of APIs introduced in iOS 17.
+            configuration
+                .configurationDisplayName("赶集日记 · 田园集市")
+                .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
+                .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        }
     }
 }
 
