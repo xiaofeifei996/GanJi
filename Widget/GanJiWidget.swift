@@ -201,14 +201,13 @@ struct GanJiWidgetView: View {
                 // Draw the photo inside the widget content instead of using
                 // containerBackground, which iOS 26 can remove/replace when
                 // the Home Screen uses the clear/glass widget appearance.
-                content
-                    .background {
-                        GeometryReader { proxy in
-                            WidgetCanvas(dark: dark)
-                                .frame(width: proxy.size.width, height: proxy.size.height)
-                        }
-                    }
-                    .clipped()
+                ZStack {
+                    WidgetCanvas(dark: dark)
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
             }
         }
         .unredacted()
@@ -430,18 +429,7 @@ struct GanJiWidgetView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
-                    EmptyView()
-                        .frame(height: 42)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(alignment: .bottomLeading) {
-                            Text("岭南乡野 · 圩日历")
-                                .font(.system(size: 8, weight: .semibold))
-                                .foregroundColor(Color(red: 0.12, green: 0.22, blue: 0.18))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Color.white.opacity(0.72), in: Capsule())
-                                .padding(5)
-                        }
+                    Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
