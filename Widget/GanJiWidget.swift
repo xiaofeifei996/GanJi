@@ -223,7 +223,7 @@ struct GanJiWidgetView: View {
                 .lineLimit(3)
                 .minimumScaleFactor(0.62)
             Spacer(minLength: 0)
-            Rectangle().fill(WidgetPalette.orange.opacity(0.7)).frame(height: 2)
+            Rectangle().fill(WidgetPalette.gold.opacity(0.7)).frame(height: 2)
             Text(dateLabel(entry.date))
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(muted)
@@ -239,7 +239,7 @@ struct GanJiWidgetView: View {
                 Text("赶集日记")
                     .font(.system(size: 10, weight: .bold))
                     .tracking(1)
-                    .foregroundStyle(WidgetPalette.orange)
+                    .foregroundStyle(WidgetPalette.gold)
             }
             Text(names(0, limit: 4))
                 .font(.system(size: 23, weight: .heavy, design: .serif))
@@ -261,12 +261,12 @@ struct GanJiWidgetView: View {
                 Spacer()
                 Text(entry.date.formatted(.dateTime.month(.twoDigits).day(.twoDigits).locale(Locale(identifier: "zh_CN"))))
                     .font(.system(size: 12, weight: .bold, design: .serif))
-                    .foregroundStyle(WidgetPalette.orange)
+                    .foregroundStyle(WidgetPalette.gold)
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("今天")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(WidgetPalette.orange)
+                    .foregroundStyle(WidgetPalette.gold)
                 Text(names(0, limit: 5))
                     .font(.system(size: 27, weight: .heavy, design: .serif))
                     .foregroundStyle(ink)
@@ -295,7 +295,7 @@ struct GanJiWidgetView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(index == 1 ? "明天" : "后天")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(WidgetPalette.orange)
+                .foregroundStyle(WidgetPalette.gold)
             if entry.days.indices.contains(index) {
                 Text(entry.days[index].date.formatted(.dateTime.month(.twoDigits).day(.twoDigits).locale(Locale(identifier: "zh_CN"))))
                     .font(.system(size: 16, weight: .heavy, design: .serif))
