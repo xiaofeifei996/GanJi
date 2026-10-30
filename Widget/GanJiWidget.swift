@@ -57,7 +57,7 @@ private enum Palette {
 
 // Shared photo background asset used by all widget families.
 private struct LandscapeBackdrop: View {
-    var body: some View {
+    private var photo: some View {
         Image("GanJiLandscape")
             .resizable()
             .scaledToFill()
@@ -69,6 +69,15 @@ private struct LandscapeBackdrop: View {
                     endPoint: .bottom
                 )
             )
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOSApplicationExtension 18.0, *) {
+            photo.widgetAccentedRenderingMode(.fullColor)
+        } else {
+            photo
+        }
     }
 }
 
