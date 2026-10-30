@@ -58,20 +58,17 @@ private enum Palette {
 // Shared photo background asset used by all widget families.
 private struct LandscapeBackdrop: View {
     var body: some View {
-        GeometryReader { proxy in
-            Image("GanJiLandscape")
-                .resizable()
-                .scaledToFill()
-                .frame(width: proxy.size.width, height: proxy.size.height)
-                .clipped()
-                .overlay(
-                    LinearGradient(
-                        colors: [.clear, Color.black.opacity(0.12), Color.black.opacity(0.42)],
-                        startPoint: .center,
-                        endPoint: .bottom
-                    )
+        Image("GanJiLandscape")
+            .resizable()
+            .scaledToFill()
+            .clipped()
+            .overlay(
+                LinearGradient(
+                    colors: [.clear, Color.black.opacity(0.12), Color.black.opacity(0.42)],
+                    startPoint: .center,
+                    endPoint: .bottom
                 )
-        }
+            )
     }
 }
 
