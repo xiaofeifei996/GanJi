@@ -1,38 +1,34 @@
 import WidgetKit
 import SwiftUI
 
-// MARK: - Timeline model
+// MARK: - Widget data
 
-struct DayItem: Identifiable {
-    let id: String
-    let name: String
-    var short: String { name.replacingOccurrences(of: "圩", with: "") }
+private struct WidgetDay: Identifiable {
+    let date: Date
+    let markets: [String]
+    var id: Date { date }
 }
 
 struct GanJiEntry: TimelineEntry {
     let date: Date
-    let days: [Date]
-    let sections: [[DayItem]]
+    let days: [WidgetDay]
 }
 
 struct MarketProvider: TimelineProvider {
-    private let appGroup = "group.com.ganji.diary"
+    private let groupID = "group.com.ganji.diary"
 
-    // One data path is used by placeholder, snapshot and timeline. This avoids
-    // the old state where the installed widget could remain on a separate demo view.
-    private func makeEntry(at date: Date) -> GanJiEntry {
+    private func makeEntry(_ date: Date) -> GanJiEntry {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: date)
-        let days = (0..<3).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        let dates = (0..<3).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
 
-        let shared = UserDefaults(suiteName: appGroup)
-        let favoriteIDs = Set(shared?.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
+        let shared = UserDefaults(suiteName: groupID)
+        let ids = Set(shared?.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
         let favoriteData = shared?.data(forKey: "GanJiFavoriteMarketsData") ?? Data()
         let homeData = shared?.data(forKey: "GanJiHomeMarketsData") ?? Data()
-
         let favorites = (try? JSONDecoder().decode([Market].self, from: favoriteData)) ?? []
         let home = (try? JSONDecoder().decode([Market].self, from: homeData)) ?? []
-        let bundled = MarketStore.load()
+        let all = MarketStore.load()
 
         let source: [Market]
         if !favorites.isEmpty {
@@ -40,291 +36,238 @@ struct MarketProvider: TimelineProvider {
         } else if !home.isEmpty {
             source = home
         } else {
-            source = bundled
+            source = all
         }
 
-        // When favorites exist, show only those. If the user has not favorited
-        // anything yet, show the available homepage markets instead of blank cards.
-        let visible = favoriteIDs.isEmpty
-            ? source
-            : source.filter { favoriteIDs.contains($0.id) }
-
-        let sections = days.map { target in
-            visible
-                .filter { MarketStore.opens(on: target, market: $0) }
-                .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
-                .map { DayItem(id: $0.id, name: $0.name) }
+        let visible = ids.isEmpty ? source : source.filter { ids.contains($0.id) }
+        let days = dates.map { day in
+            WidgetDay(
+                date: day,
+                markets: visible
+                    .filter { MarketStore.opens(on: day, market: $0) }
+                    .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+                    .map(\.name)
+            )
         }
-        return GanJiEntry(date: date, days: days, sections: sections)
+        return GanJiEntry(date: date, days: days)
     }
 
-    func placeholder(in context: Context) -> GanJiEntry {
-        makeEntry(at: Date())
-    }
+    func placeholder(in context: Context) -> GanJiEntry { makeEntry(Date()) }
 
     func getSnapshot(in context: Context, completion: @escaping (GanJiEntry) -> Void) {
-        completion(makeEntry(at: Date()))
+        completion(makeEntry(Date()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiEntry>) -> Void) {
         let now = Date()
-        let entry = makeEntry(at: now)
-        let refresh = Calendar.current.date(byAdding: .hour, value: 1, to: now)
-            ?? now.addingTimeInterval(3600)
-        completion(Timeline(entries: [entry], policy: .after(refresh)))
+        let entry = makeEntry(now)
+        let next = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now.addingTimeInterval(3600)
+        completion(Timeline(entries: [entry], policy: .after(next)))
     }
 }
 
-// MARK: - Artwork
+// MARK: - A clean, image-free visual system
 
-private struct WidgetArtwork: View {
-    @Environment(\.widgetFamily) private var family
+private enum WidgetPalette {
+    static let paper = Color(red: 0.96, green: 0.94, blue: 0.87)
+    static let ink = Color(red: 0.12, green: 0.20, blue: 0.17)
+    static let muted = Color(red: 0.38, green: 0.43, blue: 0.38)
+    static let orange = Color(red: 0.82, green: 0.31, blue: 0.10)
+    static let sage = Color(red: 0.77, green: 0.82, blue: 0.66)
+}
 
+private struct WidgetBackdrop: View {
     var body: some View {
-        Group {
-            if family == .systemSmall {
-                Image("HanLi-square", bundle: .main)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image("HanLi-wide", bundle: .main)
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .overlay {
+        ZStack {
             LinearGradient(
-                colors: [.white.opacity(0.18), .white.opacity(0.06)],
-                startPoint: .top,
-                endPoint: .bottom
+                colors: [
+                    Color(red: 0.88, green: 0.89, blue: 0.78),
+                    Color(red: 0.78, green: 0.84, blue: 0.76),
+                    Color(red: 0.91, green: 0.86, blue: 0.75)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
+            GeometryReader { proxy in
+                Circle()
+                    .fill(.white.opacity(0.16))
+                    .frame(width: proxy.size.width * 0.72)
+                    .offset(x: proxy.size.width * 0.48, y: -proxy.size.height * 0.28)
+                Circle()
+                    .stroke(.white.opacity(0.18), lineWidth: 1)
+                    .frame(width: proxy.size.width * 0.92)
+                    .offset(x: -proxy.size.width * 0.42, y: proxy.size.height * 0.62)
+            }
         }
         .accessibilityHidden(true)
     }
 }
 
-
-// Keep iOS 15/16 compatibility while using WidgetKit's managed background on iOS 17+.
-private struct WidgetBackgroundModifier: ViewModifier {
+private struct WidgetBackground: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
-            content.containerBackground(for: .widget) {
-                WidgetArtwork()
-            }
+            content.containerBackground(for: .widget) { WidgetBackdrop() }
         } else {
-            content.background {
-                WidgetArtwork()
-            }
+            content.background(WidgetBackdrop())
         }
     }
 }
-
-// MARK: - Widget view
 
 struct GanJiWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var colorScheme
     let entry: GanJiEntry
 
-    private let ink = Color(red: 0.12, green: 0.22, blue: 0.18)
-    private let orange = Color(red: 0.94, green: 0.39, blue: 0.08)
-    private var dark: Bool { colorScheme == .dark }
-    private var textColor: Color { dark ? .white : ink }
-    private var secondary: Color { dark ? .white.opacity(0.78) : ink.opacity(0.72) }
+    private var ink: Color { colorScheme == .dark ? .white : WidgetPalette.ink }
+    private var muted: Color { colorScheme == .dark ? .white.opacity(0.72) : WidgetPalette.muted }
 
     var body: some View {
         Group {
             switch family {
-            case .systemSmall:
-                smallView
-            case .systemMedium:
-                mediumView
-            default:
-                largeView
+            case .systemSmall: small
+            case .systemMedium: medium
+            default: large
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .modifier(WidgetBackground())
         .unredacted()
-        .modifier(WidgetBackgroundModifier())
     }
 
-    private func marketNames(_ index: Int, short: Bool = false) -> String {
-        guard entry.sections.indices.contains(index) else { return "暂无数据" }
-        let items = entry.sections[index]
-        guard !items.isEmpty else { return index == 0 ? "今日暂无圩日" : "暂无圩日" }
-        return items.map { short ? $0.short : $0.name }.joined(separator: " · ")
+    private func names(_ index: Int, limit: Int = 3) -> String {
+        guard entry.days.indices.contains(index) else { return "暂无数据" }
+        let values = entry.days[index].markets
+        return values.isEmpty ? "暂无圩日" : values.prefix(limit).joined(separator: " · ")
     }
 
-    private func dateText(_ date: Date) -> String {
-        let parts = Calendar.current.dateComponents([.month, .day], from: date)
-        return "\(parts.month ?? 1)/\(parts.day ?? 1)"
+    private func dateLabel(_ date: Date) -> String {
+        date.formatted(
+            .dateTime.month(.twoDigits).day(.twoDigits).weekday(.wide).locale(Locale(identifier: "zh_CN"))
+        )
     }
 
-    private var smallView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Image(systemName: "basket.fill")
-                    .foregroundColor(orange)
-                Text("今日圩日")
-                    .font(.system(size: 13, weight: .heavy, design: .serif))
-                    .foregroundColor(textColor)
-                Spacer(minLength: 0)
-                Text("今天")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(ink)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(Color(red: 0.86, green: 0.90, blue: 0.72), in: Capsule())
-            }
-            Text(marketNames(0, short: true))
-                .font(.system(size: 21, weight: .heavy, design: .serif))
-                .foregroundColor(textColor)
-                .lineLimit(3)
-                .minimumScaleFactor(0.58)
-            Spacer(minLength: 0)
-            Text("\(LunarCalendar.shortDate(entry.date))  \(LunarCalendar.weekdayText(entry.date))")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(secondary)
-            Text("农历 \(LunarCalendar.lunarText(entry.date))")
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(secondary)
+    private func heading(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold, design: .serif))
+                .foregroundStyle(ink)
+            Text(subtitle)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(muted)
         }
-        .padding(11)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(.white.opacity(dark ? 0.08 : 0.24), in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var mediumView: some View {
+    private var small: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("今日圩日")
-                        .font(.system(size: 15, weight: .heavy, design: .serif))
-                        .foregroundColor(textColor)
-                    Text("\(LunarCalendar.shortDate(entry.date)) · \(LunarCalendar.weekdayText(entry.date))")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(secondary)
-                }
+                Text("赶集日记")
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(2)
+                    .foregroundStyle(WidgetPalette.orange)
+                Spacer()
+                Text("今日")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(WidgetPalette.ink)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(WidgetPalette.sage.opacity(0.8), in: Capsule())
+            }
+            Text(names(0, limit: 2))
+                .font(.system(size: 22, weight: .heavy, design: .serif))
+                .foregroundStyle(ink)
+                .lineLimit(3)
+                .minimumScaleFactor(0.62)
+            Spacer(minLength: 0)
+            Rectangle().fill(WidgetPalette.orange.opacity(0.7)).frame(height: 2)
+            Text(dateLabel(entry.date))
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(muted)
+        }
+        .padding(12)
+    }
+
+    private var medium: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                heading("今日圩日", subtitle: dateLabel(entry.date))
                 Spacer()
                 Text("赶集日记")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(orange)
+                    .tracking(1)
+                    .foregroundStyle(WidgetPalette.orange)
             }
-            Text(marketNames(0))
+            Text(names(0, limit: 4))
                 .font(.system(size: 23, weight: .heavy, design: .serif))
-                .foregroundColor(textColor)
-                .lineLimit(2)
-                .minimumScaleFactor(0.6)
-            HStack(spacing: 7) {
-                forecastCard(1)
-                forecastCard(2)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private func forecastCard(_ index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(index == 1 ? "明日" : "后日")
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(secondary)
-            Text(marketNames(index))
-                .font(.system(size: 12, weight: .bold, design: .serif))
-                .foregroundColor(textColor)
+                .foregroundStyle(ink)
                 .lineLimit(2)
                 .minimumScaleFactor(0.65)
-            Text("\(dateText(entry.days[index]))  \(LunarCalendar.weekdayText(entry.days[index]))")
-                .font(.system(size: 8, weight: .medium))
-                .foregroundColor(secondary)
+            HStack(spacing: 8) {
+                forecast(index: 1)
+                forecast(index: 2)
+            }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(dark ? 0.08 : 0.58), in: RoundedRectangle(cornerRadius: 11))
+        .padding(13)
     }
 
-    private var largeView: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("今日圩日")
-                        .font(.system(size: 17, weight: .heavy, design: .serif))
-                        .foregroundColor(textColor)
-                    Text("\(LunarCalendar.shortDate(entry.date))  \(LunarCalendar.weekdayText(entry.date))")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(secondary)
-                    Text("农历 \(LunarCalendar.lunarText(entry.date)) · \(LunarCalendar.ganzhiName(entry.date))日")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(secondary)
-                }
+    private var large: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                heading("赶集日记", subtitle: "今日圩日 · 未来三天")
                 Spacer()
-                Text("今日")
+                Text(entry.date.formatted(.dateTime.month(.abbreviated).day()))
+                    .font(.system(size: 12, weight: .bold, design: .serif))
+                    .foregroundStyle(WidgetPalette.orange)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("今天")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(ink)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Color(red: 0.86, green: 0.90, blue: 0.72), in: Capsule())
+                    .foregroundStyle(WidgetPalette.orange)
+                Text(names(0, limit: 5))
+                    .font(.system(size: 27, weight: .heavy, design: .serif))
+                    .foregroundStyle(ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.62)
+                Text(entry.days.first?.markets.isEmpty == false ? "把握今日圩期，出发去赶集" : "今天暂无圩日安排")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(muted)
             }
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(marketNames(0))
-                        .font(.system(size: 28, weight: .heavy, design: .serif))
-                        .foregroundColor(textColor)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.6)
-                    Text(entry.sections.first?.isEmpty == false ? "今天赶集 · 记得出发" : "今天暂无圩日")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(orange)
-                }
-                Spacer(minLength: 0)
-                Image("HanLi-square", bundle: .main)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 82, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .padding(10)
-            .background(.white.opacity(dark ? 0.08 : 0.38), in: RoundedRectangle(cornerRadius: 14))
-            HStack(spacing: 7) {
-                dayCard(0)
-                dayCard(1)
-                dayCard(2)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white.opacity(colorScheme == .dark ? 0.08 : 0.42), in: RoundedRectangle(cornerRadius: 16))
+            HStack(spacing: 8) {
+                forecast(index: 1)
+                forecast(index: 2)
             }
             Spacer(minLength: 0)
+            Text("按已收藏的集市为你整理")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(muted)
         }
-        .padding(12)
+        .padding(14)
     }
 
-    private func dayCard(_ index: Int) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(["今天", "明天", "后天"][index])
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(index == 0 ? .white : textColor)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(index == 0 ? orange : Color.white.opacity(dark ? 0.12 : 0.55), in: Capsule())
-            Text(dateText(entry.days[index]))
-                .font(.system(size: 16, weight: .heavy, design: .serif))
-                .foregroundColor(textColor)
-            Text(LunarCalendar.weekdayText(entry.days[index]))
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(secondary)
-            Spacer(minLength: 2)
-            Text(marketNames(index, short: true))
-                .font(.system(size: 12, weight: .heavy, design: .serif))
-                .foregroundColor(index == 0 ? orange : textColor)
+    private func forecast(index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(index == 1 ? "明天" : "后天")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(WidgetPalette.orange)
+            if entry.days.indices.contains(index) {
+                Text(entry.days[index].date.formatted(.dateTime.month().day()))
+                    .font(.system(size: 16, weight: .heavy, design: .serif))
+                    .foregroundStyle(ink)
+            }
+            Text(names(index, limit: 3))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(ink)
                 .lineLimit(2)
-                .minimumScaleFactor(0.55)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
-        .background(.white.opacity(dark ? 0.10 : 0.58), in: RoundedRectangle(cornerRadius: 13))
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
+        .background(.white.opacity(colorScheme == .dark ? 0.08 : 0.48), in: RoundedRectangle(cornerRadius: 13))
     }
 }
-
-// MARK: - Widget registration
 
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
@@ -334,14 +277,12 @@ struct GanJiWidget: Widget {
             GanJiWidgetView(entry: entry)
         }
         .configurationDisplayName("赶集日记")
-        .description("查看今日、明日与后日圩日")
+        .description("简洁查看今天、明天和后天的圩日")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
 @main
 struct GanJiWidgetBundle: WidgetBundle {
-    var body: some Widget {
-        GanJiWidget()
-    }
+    var body: some Widget { GanJiWidget() }
 }
