@@ -276,9 +276,11 @@ private extension View {
         if #available(iOSApplicationExtension 17.0, *) {
             containerBackground(for: .widget) {
                 Color.white
+                    .ignoresSafeArea()
             }
+            .background(Color.white.ignoresSafeArea())
         } else {
-            background(Color.white)
+            background(Color.white.ignoresSafeArea())
         }
     }
 }
