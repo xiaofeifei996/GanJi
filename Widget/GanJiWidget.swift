@@ -270,6 +270,19 @@ private extension GanJiWidgetView {
     static let dateFontSize: CGFloat = 50
 }
 
+private extension View {
+    @ViewBuilder
+    func ganJiWidgetBackground() -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            containerBackground(for: .widget) {
+                Color.white
+            }
+        } else {
+            background(Color.white)
+        }
+    }
+}
+
 @main
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
@@ -277,7 +290,7 @@ struct GanJiWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
             GanJiWidgetView(entry: entry)
-                .background(Color.white)
+                .ganJiWidgetBackground()
         }
         .configurationDisplayName("赶集日记")
         .description("查看今天、明天和后天的赶集安排")
