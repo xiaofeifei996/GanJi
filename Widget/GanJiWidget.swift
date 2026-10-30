@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import UIKit
 
 struct DayItem: Identifiable {
     let id: String
@@ -77,8 +78,19 @@ private struct WidgetCanvas: View {
         family == .systemSmall ? "HanLi-square" : "HanLi-wide"
     }
 
+    private var artwork: Image {
+        // XcodeGen currently copies the source JPGs into the extension bundle
+        // as standalone resources. Load those files directly instead of
+        // depending on asset-catalog name lookup.
+        if let url = Bundle.main.url(forResource: imageName, withExtension: "jpg"),
+           let uiImage = UIImage(contentsOfFile: url.path) {
+            return Image(uiImage: uiImage)
+        }
+        return Image(imageName, bundle: .main)
+    }
+
     var body: some View {
-        Image(imageName, bundle: .main)
+        artwork
             .resizable()
             .scaledToFill()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
