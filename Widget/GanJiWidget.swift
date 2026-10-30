@@ -66,38 +66,83 @@ struct MarketProvider: TimelineProvider {
     }
 }
 
-// MARK: - A clean, image-free visual system
+// MARK: - Ink-wash mountain visual system
 
 private enum WidgetPalette {
-    static let paper = Color(red: 0.96, green: 0.94, blue: 0.87)
-    static let ink = Color(red: 0.12, green: 0.20, blue: 0.17)
-    static let muted = Color(red: 0.38, green: 0.43, blue: 0.38)
-    static let orange = Color(red: 0.82, green: 0.31, blue: 0.10)
-    static let sage = Color(red: 0.77, green: 0.82, blue: 0.66)
+    static let cream = Color(red: 0.97, green: 0.92, blue: 0.80)
+    static let ink = Color(red: 0.10, green: 0.18, blue: 0.17)
+    static let muted = Color(red: 0.83, green: 0.84, blue: 0.75)
+    static let gold = Color(red: 0.91, green: 0.67, blue: 0.34)
+    static let vermilion = Color(red: 0.72, green: 0.25, blue: 0.16)
+}
+
+private struct Ridge: Shape {
+    var height: CGFloat
+    var shift: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: rect.height * height))
+        p.addCurve(to: CGPoint(x: rect.width * 0.48, y: rect.height * (height - 0.38)),
+                   control1: CGPoint(x: rect.width * 0.18, y: rect.height * (height - 0.48)),
+                   control2: CGPoint(x: rect.width * 0.30, y: rect.height * (height - 0.08)))
+        p.addCurve(to: CGPoint(x: rect.width, y: rect.height * (height - 0.12 + shift)),
+                   control1: CGPoint(x: rect.width * 0.69, y: rect.height * (height - 0.62)),
+                   control2: CGPoint(x: rect.width * 0.82, y: rect.height * (height + 0.12)))
+        p.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        p.addLine(to: CGPoint(x: 0, y: rect.height))
+        p.closeSubpath()
+        return p
+    }
 }
 
 private struct WidgetBackdrop: View {
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.88, green: 0.89, blue: 0.78),
-                    Color(red: 0.78, green: 0.84, blue: 0.76),
-                    Color(red: 0.91, green: 0.86, blue: 0.75)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            GeometryReader { proxy in
+        GeometryReader { proxy in
+            ZStack {
+                LinearGradient(colors: [
+                    Color(red: 0.78, green: 0.77, blue: 0.65),
+                    Color(red: 0.39, green: 0.53, blue: 0.48),
+                    Color(red: 0.12, green: 0.27, blue: 0.26)
+                ], startPoint: .top, endPoint: .bottom)
                 Circle()
-                    .fill(.white.opacity(0.16))
-                    .frame(width: proxy.size.width * 0.72)
-                    .offset(x: proxy.size.width * 0.48, y: -proxy.size.height * 0.28)
-                Circle()
-                    .stroke(.white.opacity(0.18), lineWidth: 1)
-                    .frame(width: proxy.size.width * 0.92)
-                    .offset(x: -proxy.size.width * 0.42, y: proxy.size.height * 0.62)
+                    .fill(WidgetPalette.gold.opacity(0.72))
+                    .frame(width: min(proxy.size.width, proxy.size.height) * 0.34)
+                    .blur(radius: 1)
+                    .offset(x: proxy.size.width * 0.27, y: -proxy.size.height * 0.25)
+                Ridge(height: 0.68, shift: 0.02)
+                    .fill(Color(red: 0.58, green: 0.66, blue: 0.58).opacity(0.72))
+                Ridge(height: 0.82, shift: -0.02)
+                    .fill(Color(red: 0.29, green: 0.43, blue: 0.39).opacity(0.88))
+                Ridge(height: 0.94, shift: 0.01)
+                    .fill(Color(red: 0.10, green: 0.24, blue: 0.23))
+                VStack {
+                    Spacer()
+                    HStack(spacing: 18) {
+                        Capsule().fill(.white.opacity(0.13)).frame(width: proxy.size.width * 0.28, height: 1)
+                        Capsule().fill(.white.opacity(0.20)).frame(width: proxy.size.width * 0.18, height: 1)
+                    }
+                    .blur(radius: 5)
+                    .padding(.bottom, proxy.size.height * 0.20)
+                }
+                // A small, original ink-style traveler silhouette on the ridge.
+                VStack(spacing: 0) {
+                    Circle().fill(Color(red: 0.08, green: 0.13, blue: 0.12))
+                        .frame(width: 5, height: 5)
+                    Path { p in
+                        p.move(to: CGPoint(x: 5, y: 0))
+                        p.addQuadCurve(to: CGPoint(x: 0, y: 17), control: CGPoint(x: -1, y: 9))
+                        p.addLine(to: CGPoint(x: 13, y: 17))
+                        p.addQuadCurve(to: CGPoint(x: 8, y: 0), control: CGPoint(x: 14, y: 8))
+                        p.closeSubpath()
+                    }
+                    .fill(Color(red: 0.08, green: 0.13, blue: 0.12))
+                    .frame(width: 13, height: 17)
+                }
+                .offset(x: -proxy.size.width * 0.22, y: proxy.size.height * 0.31)
+                LinearGradient(colors: [.black.opacity(0.18), .clear, .black.opacity(0.26)],
+                               startPoint: .top, endPoint: .bottom)
             }
+            .clipped()
         }
         .accessibilityHidden(true)
     }
@@ -118,8 +163,8 @@ struct GanJiWidgetView: View {
     @Environment(\.colorScheme) private var colorScheme
     let entry: GanJiEntry
 
-    private var ink: Color { colorScheme == .dark ? .white : WidgetPalette.ink }
-    private var muted: Color { colorScheme == .dark ? .white.opacity(0.72) : WidgetPalette.muted }
+    private var ink: Color { WidgetPalette.cream }
+    private var muted: Color { WidgetPalette.muted }
 
     var body: some View {
         Group {
@@ -163,14 +208,14 @@ struct GanJiWidgetView: View {
                 Text("赶集日记")
                     .font(.system(size: 12, weight: .heavy, design: .serif))
                     .tracking(2)
-                    .foregroundStyle(WidgetPalette.orange)
+                    .foregroundStyle(WidgetPalette.gold)
                 Spacer()
                 Text("今日")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(WidgetPalette.ink)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(WidgetPalette.sage.opacity(0.8), in: Capsule())
+                    .background(WidgetPalette.gold.opacity(0.28), in: Capsule())
             }
             Text(names(0, limit: 2))
                 .font(.system(size: 22, weight: .heavy, design: .serif))
@@ -233,7 +278,7 @@ struct GanJiWidgetView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white.opacity(colorScheme == .dark ? 0.08 : 0.42), in: RoundedRectangle(cornerRadius: 16))
+            .background(.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 16))
             HStack(spacing: 8) {
                 forecast(index: 1)
                 forecast(index: 2)
@@ -265,7 +310,7 @@ struct GanJiWidgetView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
-        .background(.white.opacity(colorScheme == .dark ? 0.08 : 0.48), in: RoundedRectangle(cornerRadius: 13))
+        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 13))
     }
 }
 
