@@ -211,9 +211,9 @@ struct GanJiWidgetView: View {
     private var primaryInk: Color { dark ? Color(red: 0.97, green: 0.94, blue: 0.84) : ink }
     private var secondaryInk: Color { dark ? Color.white.opacity(0.76) : ink.opacity(0.72) }
 
+    @ViewBuilder
     var body: some View {
-        ZStack {
-            WidgetCanvas()
+        if #available(iOS 17.0, *) {
             Group {
                 if entry.isPlaceholder {
                     previewContent
@@ -222,11 +222,30 @@ struct GanJiWidgetView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .unredacted()
+            // WidgetKit owns the widget surface on iOS 17+, so provide the
+            // artwork through its official background API instead of placing
+            // it behind content in a regular ZStack.
+            .containerBackground(for: .widget) {
+                WidgetCanvas()
+            }
+        } else {
+            ZStack {
+                WidgetCanvas()
+                Group {
+                    if entry.isPlaceholder {
+                        previewContent
+                    } else {
+                        content
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .unredacted()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .unredacted()
-        .modifier(WidgetClearContainerBackground())
     }
 
     private var previewContent: some View {
