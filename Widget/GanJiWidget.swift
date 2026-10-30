@@ -53,21 +53,27 @@ struct MarketProvider: TimelineProvider {
         return GanJiEntry(date: now, days: days, sections: [[], [], []], isPlaceholder: true)
     }
     func getSnapshot(in context: Context, completion: @escaping (GanJiEntry) -> Void) {
-        // Keep the gallery preview deterministic, but always provide live shared
-        // data to the system snapshot so an installed widget does not remain on
-        // the generic placeholder while WidgetKit is refreshing its first timeline.
-        completion(context.isPreview ? placeholder(in: context) : build(Date()))
+        if context.isPreview {
+            completion(placeholder(in: context))
+        } else {
+            completion(diagnosticEntry(Date()))
+        }
     }
+
+    // Diagnostic control: deliberately skip App Group reads, JSON decoding and
+    // lunar calculations. If this entry appears, WidgetKit is invoking the
+    // provider correctly and the failure is inside the data-building path.
+    private func diagnosticEntry(_ date: Date) -> GanJiEntry {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        let days = (0..<3).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        return GanJiEntry(date: date, days: days, sections: [[], [], []], isPlaceholder: false)
+    }
+
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiEntry>) -> Void) {
-        // Build only the current entry. Computing eight complete market timelines
-        // synchronously can be expensive because each market may require up to
-        // 40 lunar-day checks. If WidgetKit times out this request, the widget can
-        // remain on its grey placeholder instead of receiving real content.
         let now = Date()
-        let entry = build(now)
-        // Return a real entry immediately. The short refresh is only a fallback;
-        // it must not be the mechanism that supplies the first live content.
-        completion(Timeline(entries: [entry], policy: .atEnd))
+        let entry = diagnosticEntry(now)
+        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(15 * 60))))
     }
 }
 
