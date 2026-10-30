@@ -49,7 +49,6 @@ private enum Ink {
     static let gold = Color(red: 0.91, green: 0.72, blue: 0.40)
     static let ivory = Color(red: 0.98, green: 0.95, blue: 0.86)
     static let pale = Color(red: 0.86, green: 0.85, blue: 0.76)
-    static let dark = Color(red: 0.035, green: 0.10, blue: 0.10)
     static let cinnabar = Color(red: 0.72, green: 0.24, blue: 0.17)
 }
 
@@ -211,7 +210,6 @@ struct GanJiWidgetView: View {
             .padding(.vertical, 9)
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Ink.dark.opacity(0.42), in: RoundedRectangle(cornerRadius: 13))
 
             HStack(spacing: 0) {
                 ForEach(1...2, id: \.self) { index in
