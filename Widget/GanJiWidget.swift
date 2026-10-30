@@ -279,9 +279,13 @@ private struct WidgetBackgroundStyle<Background: View>: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if #available(iOSApplicationExtension 17.0, *) {
-            content.containerBackground(for: .widget) { background }
+            // Keep a normal SwiftUI background as a fallback for widget families
+            // where the system may remove the container background.
+            content
+                .background { background }
+                .containerBackground(for: .widget) { background }
         } else {
-            content.background(background)
+            content.background { background }
         }
     }
 }
