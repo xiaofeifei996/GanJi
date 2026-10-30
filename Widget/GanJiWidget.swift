@@ -328,6 +328,24 @@ private struct GanJiWidgetView: View {
     }
 }
 
+
+private extension View {
+    @ViewBuilder
+    func ganjiWidgetBackground() -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            self.containerBackground(for: .widget) {
+                WidgetBackdrop()
+                    .ignoresSafeArea()
+            }
+        } else {
+            self.background {
+                WidgetBackdrop()
+                    .ignoresSafeArea()
+            }
+        }
+    }
+}
+
 @main
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
@@ -335,10 +353,7 @@ struct GanJiWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
             GanJiWidgetView(entry: entry)
-                .containerBackground(for: .widget) {
-                    WidgetBackdrop()
-                        .ignoresSafeArea()
-                }
+                .ganjiWidgetBackground()
         }
         .configurationDisplayName("赶集日记")
         .description("查看今天、明天和后天的赶集安排")
