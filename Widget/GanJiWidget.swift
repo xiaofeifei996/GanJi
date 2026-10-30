@@ -659,6 +659,7 @@ struct GanJiWidgetView: View {
 
 struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
+
     var body: some WidgetConfiguration {
         let configuration = StaticConfiguration(kind: kind, provider: MarketProvider()) { entry in
             // Apply this at the WidgetKit configuration boundary as well as in
@@ -668,23 +669,13 @@ struct GanJiWidget: Widget {
                 .unredacted()
         }
 
-        if #available(iOSApplicationExtension 17.0, *) {
-            // On iOS 17+, disable system insets and background removal. The
-            // artwork is drawn in the widget content hierarchy for iOS 26,
-            // while the declared container background itself stays transparent.
-            configuration
-                .containerBackgroundRemovable(false)
-                .contentMarginsDisabled()
-                .configurationDisplayName("赶集日记 · 田园集市")
-                .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
-                .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
-        } else {
-            // Keep the iOS 16 configuration free of APIs introduced in iOS 17.
-            configuration
-                .configurationDisplayName("赶集日记 · 田园集市")
-                .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
-                .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
-        }
+        // Keep one concrete configuration return type across iOS versions.
+        // The artwork is drawn in the widget view itself, so the background
+        // remains visible without relying on iOS 17-only configuration modifiers.
+        return configuration
+            .configurationDisplayName("赶集日记 · 田园集市")
+            .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
+            .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
