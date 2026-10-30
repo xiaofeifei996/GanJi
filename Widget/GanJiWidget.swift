@@ -222,7 +222,6 @@ struct GanJiWidgetView: View {
             // Placeholder widgets must use the same artwork canvas as live
             // widgets. Otherwise small widgets can remain on the paper-colour
             // preview while WidgetKit is waiting for their first timeline.
-            WidgetCanvas(dark: dark)
             VStack(alignment: .leading, spacing: 8) {
                 Text("赶集日记")
                     .font(.headline)
