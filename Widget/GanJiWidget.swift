@@ -61,9 +61,9 @@ private struct LandscapeBackdrop: View {
         Group {
             if #available(iOSApplicationExtension 18.0, *) {
                 Image("GanJiLandscape")
-                    .widgetAccentedRenderingMode(.fullColor)
                     .resizable()
                     .scaledToFill()
+                    .widgetAccentedRenderingMode(.fullColor)
             } else {
                 Image("GanJiLandscape")
                     .resizable()
