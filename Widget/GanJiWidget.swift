@@ -65,9 +65,9 @@ struct MarketProvider: TimelineProvider {
         // remain on its grey placeholder instead of receiving real content.
         let now = Date()
         let entry = build(now)
-        // Retry relatively soon after the first read in case the app has just
-        // finished syncing its App Group snapshot.
-        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(15 * 60))))
+        // Return a real entry immediately. The short refresh is only a fallback;
+        // it must not be the mechanism that supplies the first live content.
+        completion(Timeline(entries: [entry], policy: .atEnd))
     }
 }
 
@@ -272,6 +272,10 @@ struct GanJiWidgetView: View {
                 Text("打开 App 同步圩日")
                     .font(.caption)
                     .foregroundColor(Color(red: 0.75, green: 0.28, blue: 0.12))
+                Text("诊断：当前显示的是占位画面 · v1.3.34")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(Color(red: 0.72, green: 0.18, blue: 0.12))
+                    .lineLimit(2)
                 Spacer(minLength: 0)
             }
             .padding(12)
