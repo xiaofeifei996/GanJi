@@ -25,8 +25,13 @@ struct MarketProvider: TimelineProvider {
         let shared = UserDefaults(suiteName: "group.com.ganji.diary")
         let favoriteIDs = Set(shared?.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
         let favoriteData = shared?.data(forKey: "GanJiFavoriteMarketsData") ?? Data()
+        let homeData = shared?.data(forKey: "GanJiHomeMarketsData") ?? Data()
         let savedFavorites = (try? JSONDecoder().decode([Market].self, from: favoriteData)) ?? []
-        let homeMarkets = savedFavorites.filter { favoriteIDs.contains($0.id) }
+        let savedHomeMarkets = (try? JSONDecoder().decode([Market].self, from: homeData)) ?? []
+        // Prefer the persisted favorites, but recover from the full homepage
+        // snapshot if the favorite cache is absent or stale.
+        let sourceMarkets = savedFavorites.isEmpty ? savedHomeMarkets : savedFavorites
+        let homeMarkets = sourceMarkets.filter { favoriteIDs.contains($0.id) }
         let sections = days.enumerated().map { offset, targetDate in
             homeMarkets
                 .filter { MarketStore.opens(on: targetDate, market: $0) }
@@ -48,11 +53,10 @@ struct MarketProvider: TimelineProvider {
         return GanJiEntry(date: now, days: days, sections: [[], [], []], isPlaceholder: true)
     }
     func getSnapshot(in context: Context, completion: @escaping (GanJiEntry) -> Void) {
-        if context.isPreview {
-            completion(placeholder(in: context))
-        } else {
-            completion(build(Date()))
-        }
+        // Keep the gallery preview deterministic, but always provide live shared
+        // data to the system snapshot so an installed widget does not remain on
+        // the generic placeholder while WidgetKit is refreshing its first timeline.
+        completion(context.isPreview ? placeholder(in: context) : build(Date()))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiEntry>) -> Void) {
         // Build only the current entry. Computing eight complete market timelines
@@ -61,10 +65,9 @@ struct MarketProvider: TimelineProvider {
         // remain on its grey placeholder instead of receiving real content.
         let now = Date()
         let entry = build(now)
-        let calendar = Calendar.current
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
-            ?? now.addingTimeInterval(24 * 60 * 60)
-        completion(Timeline(entries: [entry], policy: .after(tomorrow)))
+        // Retry relatively soon after the first read in case the app has just
+        // finished syncing its App Group snapshot.
+        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(15 * 60))))
     }
 }
 
