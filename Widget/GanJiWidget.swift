@@ -80,17 +80,7 @@ private struct Scenery: View {
             }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .clipped()
-                .overlay {
-                    LinearGradient(
-                        stops: [
-                            .init(color: Ink.dark.opacity(0.62), location: 0),
-                            .init(color: Ink.dark.opacity(0.20), location: 0.48),
-                            .init(color: Ink.dark.opacity(0.74), location: 1)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                }
+
         }
         .accessibilityHidden(true)
     }
