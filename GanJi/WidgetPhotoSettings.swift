@@ -176,60 +176,113 @@ private struct WidgetPhotoSlotCard: View {
     }
 }
 
-struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
-    let slot: WidgetPhotoSlot
+/// A persistent UIKit presenter hosted by the app root. PHPicker is presented and
+/// dismissed by UIKit itself, so repeated selections do not depend on SwiftUI
+/// sheet/full-screen-cover state transitions.
+struct WidgetPhotoPickerHost: UIViewControllerRepresentable {
+    @Binding var requestedSlot: WidgetPhotoSlot?
     let onFinished: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(slot: slot, onFinished: onFinished)
+        Coordinator(requestedSlot: $requestedSlot, onFinished: onFinished)
     }
 
-    func makeUIViewController(context: Context) -> PHPickerViewController {
-        var configuration = PHPickerConfiguration(photoLibrary: .shared())
-        configuration.filter = .images
-        configuration.selectionLimit = 1
-        let picker = PHPickerViewController(configuration: configuration)
-        picker.delegate = context.coordinator
-        return picker
+    func makeUIViewController(context: Context) -> HostViewController {
+        let controller = HostViewController()
+        controller.onDidAppear = { [weak coordinator = context.coordinator] host in
+            coordinator?.presentIfPossible(from: host)
+        }
+        return controller
     }
 
-    func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
+    func updateUIViewController(_ controller: HostViewController, context: Context) {
+        context.coordinator.requestedSlot = $requestedSlot
+        context.coordinator.onFinished = onFinished
+        context.coordinator.host = controller
+        context.coordinator.presentIfPossible(from: controller)
+    }
+
+    final class HostViewController: UIViewController {
+        var onDidAppear: ((UIViewController) -> Void)?
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            onDidAppear?(self)
+        }
+    }
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        private let slot: WidgetPhotoSlot
-        private let onFinished: () -> Void
+        var requestedSlot: Binding<WidgetPhotoSlot?>
+        var onFinished: () -> Void
+        weak var host: UIViewController?
+        private var isPresenting = false
+        private var activePicker: PHPickerViewController?
 
-        init(slot: WidgetPhotoSlot, onFinished: @escaping () -> Void) {
-            self.slot = slot
+        init(requestedSlot: Binding<WidgetPhotoSlot?>, onFinished: @escaping () -> Void) {
+            self.requestedSlot = requestedSlot
             self.onFinished = onFinished
+        }
+
+        func presentIfPossible(from host: UIViewController) {
+            guard !isPresenting, let slot = requestedSlot.wrappedValue,
+                  let window = host.viewIfLoaded?.window,
+                  let root = window.rootViewController else { return }
+
+            var presenter = root
+            while let presented = presenter.presentedViewController {
+                presenter = presented
+            }
+            guard !(presenter is PHPickerViewController),
+                  presenter.viewIfLoaded?.window != nil else { return }
+
+            isPresenting = true
+            currentSlot = slot
+            var configuration = PHPickerConfiguration(photoLibrary: .shared())
+            configuration.filter = .images
+            configuration.selectionLimit = 1
+            let picker = PHPickerViewController(configuration: configuration)
+            picker.delegate = self
+            activePicker = picker
+            requestedSlot.wrappedValue = nil
+            presenter.present(picker, animated: true)
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             guard let provider = results.first?.itemProvider,
                   provider.canLoadObject(ofClass: UIImage.self) else {
-                // Let SwiftUI dismiss the sheet by clearing activeSlot in onFinished.
-                // Avoid dismissing the same presentation through both UIKit and SwiftUI.
-                DispatchQueue.main.async { [self] in
-                    self.onFinished()
-                }
+                finish(picker)
                 return
             }
 
-            provider.loadObject(ofClass: UIImage.self) { [slot, onFinished] object, _ in
+            provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
+                guard let self else { return }
                 let image = object as? UIImage
                 let data = image?.jpegData(compressionQuality: 0.88)
-                let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID)
-
-                if let data, let directory {
+                if let data,
+                   let slot = self.currentSlot,
+                   let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID) {
                     let destination = directory.appendingPathComponent(slot.fileName)
                     try? data.write(to: destination, options: .atomic)
                 }
-
                 DispatchQueue.main.async {
-                    // The parent .sheet(item:) owns presentation state. Clearing activeSlot
-                    // in onFinished dismisses the picker without a second UIKit dismissal.
-                    WidgetCenter.shared.reloadAllTimelines()
-                    onFinished()
+                    self.finish(picker)
+                }
+            }
+        }
+
+        private var currentSlot: WidgetPhotoSlot?
+
+        private func finish(_ picker: PHPickerViewController) {
+            picker.dismiss(animated: true) { [weak self] in
+                guard let self else { return }
+                self.activePicker = nil
+                self.isPresenting = false
+                self.currentSlot = nil
+                WidgetCenter.shared.reloadAllTimelines()
+                self.onFinished()
+                if let host = self.host {
+                    DispatchQueue.main.async {
+                        self.presentIfPossible(from: host)
+                    }
                 }
             }
         }
