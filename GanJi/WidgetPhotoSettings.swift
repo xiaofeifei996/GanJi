@@ -40,10 +40,8 @@ private enum WidgetPhotoSlot: String, CaseIterable, Identifiable {
 
 struct WidgetPhotoSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var activeSlot: WidgetPhotoSlot?
     @State private var refreshToken = 0
-    @State private var smallSelection: PhotosPickerItem?
-    @State private var mediumSelection: PhotosPickerItem?
-    @State private var largeSelection: PhotosPickerItem?
 
     var body: some View {
         NavigationView {
@@ -57,9 +55,13 @@ struct WidgetPhotoSettingsView: View {
                     }
                 }
         }
-        .onChange(of: smallSelection) { item in savePhoto(item, for: .small) }
-        .onChange(of: mediumSelection) { item in savePhoto(item, for: .medium) }
-        .onChange(of: largeSelection) { item in savePhoto(item, for: .large) }
+        .fullScreenCover(item: $activeSlot) { slot in
+            WidgetPhotoLibraryPicker(slot: slot) {
+                refreshToken += 1
+                WidgetCenter.shared.reloadAllTimelines()
+                activeSlot = nil
+            }
+        }
     }
 
     private var settingsList: some View {
@@ -82,15 +84,15 @@ struct WidgetPhotoSettingsView: View {
     }
 
     private var smallCard: some View {
-        WidgetPhotoSlotCard(slot: .small, refreshToken: refreshToken, selection: $smallSelection, onReset: reset(.small))
+        WidgetPhotoSlotCard(slot: .small, refreshToken: refreshToken, onPick: { activeSlot = .small }, onReset: reset(.small))
     }
 
     private var mediumCard: some View {
-        WidgetPhotoSlotCard(slot: .medium, refreshToken: refreshToken, selection: $mediumSelection, onReset: reset(.medium))
+        WidgetPhotoSlotCard(slot: .medium, refreshToken: refreshToken, onPick: { activeSlot = .medium }, onReset: reset(.medium))
     }
 
     private var largeCard: some View {
-        WidgetPhotoSlotCard(slot: .large, refreshToken: refreshToken, selection: $largeSelection, onReset: reset(.large))
+        WidgetPhotoSlotCard(slot: .large, refreshToken: refreshToken, onPick: { activeSlot = .large }, onReset: reset(.large))
     }
 
     private var privacyNote: some View {
@@ -98,39 +100,6 @@ struct WidgetPhotoSettingsView: View {
             .font(.system(size: 12))
             .foregroundColor(.secondary)
             .padding(.horizontal, 4)
-    }
-
-    private func savePhoto(_ item: PhotosPickerItem?, for slot: WidgetPhotoSlot) {
-        guard let item else { return }
-        Task {
-            do {
-                guard let data = try await item.loadTransferable(type: Data.self),
-                      let image = UIImage(data: data),
-                      let jpegData = image.jpegData(compressionQuality: 0.88),
-                      let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID) else {
-                    return
-                }
-                let destination = directory.appendingPathComponent(slot.fileName)
-                try jpegData.write(to: destination, options: .atomic)
-                await MainActor.run {
-                    refreshToken += 1
-                    WidgetCenter.shared.reloadAllTimelines()
-                    switch slot {
-                    case .small: smallSelection = nil
-                    case .medium: mediumSelection = nil
-                    case .large: largeSelection = nil
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    switch slot {
-                    case .small: smallSelection = nil
-                    case .medium: mediumSelection = nil
-                    case .large: largeSelection = nil
-                    }
-                }
-            }
-        }
     }
 
     private func reset(_ slot: WidgetPhotoSlot) -> () -> Void {
@@ -145,7 +114,7 @@ struct WidgetPhotoSettingsView: View {
 private struct WidgetPhotoSlotCard: View {
     let slot: WidgetPhotoSlot
     let refreshToken: Int
-    @Binding var selection: PhotosPickerItem?
+    let onPick: () -> Void
     let onReset: () -> Void
 
     var body: some View {
@@ -195,7 +164,7 @@ private struct WidgetPhotoSlotCard: View {
 
     private var actionRow: some View {
         HStack(spacing: 10) {
-            PhotosPicker(selection: $selection, matching: .images, photoLibrary: .shared()) {
+            Button(action: onPick) {
                 Label(slot.image == nil ? "从相册选择" : "更换照片", systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
@@ -214,3 +183,62 @@ private struct WidgetPhotoSlotCard: View {
     }
 }
 
+private struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
+    let slot: WidgetPhotoSlot
+    let onFinished: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(slot: slot, onFinished: onFinished)
+    }
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var configuration = PHPickerConfiguration(photoLibrary: .shared())
+        configuration.filter = .images
+        configuration.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        private let slot: WidgetPhotoSlot
+        private let onFinished: () -> Void
+
+        init(slot: WidgetPhotoSlot, onFinished: @escaping () -> Void) {
+            self.slot = slot
+            self.onFinished = onFinished
+        }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            guard let provider = results.first?.itemProvider,
+                  provider.canLoadObject(ofClass: UIImage.self) else {
+                // Let SwiftUI dismiss the sheet by clearing activeSlot in onFinished.
+                // Avoid dismissing the same presentation through both UIKit and SwiftUI.
+                DispatchQueue.main.async { [self] in
+                    self.onFinished()
+                }
+                return
+            }
+
+            provider.loadObject(ofClass: UIImage.self) { [slot, onFinished] object, _ in
+                let image = object as? UIImage
+                let data = image?.jpegData(compressionQuality: 0.88)
+                let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID)
+
+                if let data, let directory {
+                    let destination = directory.appendingPathComponent(slot.fileName)
+                    try? data.write(to: destination, options: .atomic)
+                }
+
+                DispatchQueue.main.async {
+                    // The parent .sheet(item:) owns presentation state. Clearing activeSlot
+                    // in onFinished dismisses the picker without a second UIKit dismissal.
+                    WidgetCenter.shared.reloadAllTimelines()
+                    onFinished()
+                }
+            }
+        }
+    }
+}
