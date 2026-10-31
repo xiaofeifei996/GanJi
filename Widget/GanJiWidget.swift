@@ -416,6 +416,9 @@ struct GanJiWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
             GanJiWidgetView(entry: entry)
+                // WidgetKit redacts gallery placeholders by default, which turns the
+                // small/medium previews into gray skeletons. Keep our designed preview visible.
+                .unredacted()
                 .ganjiWidgetBackground()
         }
         .configurationDisplayName("赶集日记")
