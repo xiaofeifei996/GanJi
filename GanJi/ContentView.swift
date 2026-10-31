@@ -59,6 +59,7 @@ struct ContentView: View {
     @State private var marketLoadError: String?
     @State private var selectedMarketID: String?
     @State private var showDatePicker = false
+    @State private var showWidgetPhotoSettings = false
     @State private var sheetExpanded = false
     // The floating map controls can be repositioned by long-pressing and dragging.
     @State private var mapControlOffset: CGSize = .zero
@@ -267,6 +268,9 @@ struct ContentView: View {
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showDatePicker = false } } }
                 }
             }
+            .sheet(isPresented: $showWidgetPhotoSettings) {
+                WidgetPhotoSettingsView()
+            }
             .sheet(isPresented: $showRegionPicker) {
                 VStack(spacing: 0) {
                     Capsule().fill(Color.gray.opacity(0.28)).frame(width: 38, height: 5).padding(.top, 10)
@@ -409,6 +413,16 @@ struct ContentView: View {
                         .foregroundColor(Color(red: 0.43, green: 0.45, blue: 0.40))
                 }
                 Spacer(minLength: 0)
+                Button {
+                    showWidgetPhotoSettings = true
+                } label: {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0.15, green: 0.19, blue: 0.17))
+                        .frame(width: 42, height: 42)
+                        .background(Color.white.opacity(0.75), in: Circle())
+                }
+                .accessibilityLabel("自定义小组件背景照片")
             }
             .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 18)
 
