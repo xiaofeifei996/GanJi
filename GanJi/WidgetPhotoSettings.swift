@@ -216,8 +216,8 @@ private struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
                   provider.canLoadObject(ofClass: UIImage.self) else {
                 // Let SwiftUI dismiss the sheet by clearing activeSlot in onFinished.
                 // Avoid dismissing the same presentation through both UIKit and SwiftUI.
-                DispatchQueue.main.async {
-                    onFinished()
+                DispatchQueue.main.async { [self] in
+                    self.onFinished()
                 }
                 return
             }
