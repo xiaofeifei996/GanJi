@@ -83,14 +83,24 @@ jobs:
           tail -n 50 build.log
           exit "$status"
 
-      - name: Embed app entitlements for TrollStore
+      - name: Embed App Group entitlements for TrollStore
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
+          EXTENSION="$APP/PlugIns/GanJiWidget.appex"
           test -d "$APP"
+          test -d "$EXTENSION"
+
+          # Sign the widget extension first so its own App Group entitlement is embedded.
+          # Signing only the containing app does not grant the extension access to the shared container.
+          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$EXTENSION"
+          echo "===== Widget extension entitlements ====="
+          codesign -d --entitlements :- "$EXTENSION" 2>&1
+
+          # Sign the containing app last, after all nested code has been signed.
           codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
           echo "===== App entitlements ====="
-          codesign -d --entitlements :- "$APP" 2>&1 || true
+          codesign -d --entitlements :- "$APP" 2>&1
 
       - name: Package IPA
         run: |
