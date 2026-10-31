@@ -372,6 +372,7 @@ struct ContentView: View {
                 }
             }
             }
+            }
         .preferredColorScheme(.light)
     }
 
