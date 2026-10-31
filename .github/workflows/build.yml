@@ -1,7 +1,7 @@
 name: Build GanJi
 on:
   push:
-    branches: [ main ]
+    branches: [ main, fix/ios26-widget-image-background ]
   workflow_dispatch:
 
 jobs:
@@ -87,27 +87,27 @@ jobs:
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
-          WIDGET="$APP/PlugIns/GanJiWidget.appex"
+          EXTENSION="$APP/PlugIns/GanJiWidget.appex"
           test -d "$APP"
-          test -d "$WIDGET"
-          # The normal build deliberately disables Xcode signing. Without an explicit
-          # ad-hoc signature, CODE_SIGN_ENTITLEMENTS are not embedded in the app/widget,
-          # so TrollStore-installed builds may not get the shared App Group container.
+          test -d "$EXTENSION"
+
+          # Sign the widget extension first so its own App Group entitlement is embedded.
+          # Signing only the containing app does not grant the extension access to the shared container.
+          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$EXTENSION"
+          echo "===== Widget extension entitlements ====="
+          codesign -d --entitlements :- "$EXTENSION" 2>&1
+
+          # Sign the containing app last, after all nested code has been signed.
           codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
-          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$WIDGET"
           echo "===== App entitlements ====="
-          codesign -d --entitlements :- "$APP" 2>&1 || true
-          echo "===== Widget entitlements ====="
-          codesign -d --entitlements :- "$WIDGET" 2>&1 || true
+          codesign -d --entitlements :- "$APP" 2>&1
 
       - name: Package IPA
         run: |
           set -e
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
           ls -la "$APP"
-          ls -la "$APP/PlugIns" || true
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/PlugIns/GanJiWidget.appex/Info.plist"
           rm -rf Payload && mkdir -p Payload
           cp -R "$APP" Payload/
           zip -qry GanJi-unsigned.ipa Payload
