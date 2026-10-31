@@ -5,7 +5,7 @@ import UIKit
 
 private let widgetPhotoGroupID = "group.com.ganji.diary"
 
-private enum WidgetPhotoSlot: String, CaseIterable, Identifiable {
+enum WidgetPhotoSlot: String, CaseIterable, Identifiable {
     case small, medium, large
 
     var id: String { rawValue }
@@ -40,7 +40,7 @@ private enum WidgetPhotoSlot: String, CaseIterable, Identifiable {
 
 struct WidgetPhotoSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var activeSlot: WidgetPhotoSlot?
+    let onPick: (WidgetPhotoSlot) -> Void
     @State private var refreshToken = 0
 
     var body: some View {
@@ -54,13 +54,6 @@ struct WidgetPhotoSettingsView: View {
                         Button("完成") { dismiss() }
                     }
                 }
-        }
-        .fullScreenCover(item: $activeSlot) { slot in
-            WidgetPhotoLibraryPicker(slot: slot) {
-                refreshToken += 1
-                WidgetCenter.shared.reloadAllTimelines()
-                activeSlot = nil
-            }
         }
     }
 
@@ -84,15 +77,15 @@ struct WidgetPhotoSettingsView: View {
     }
 
     private var smallCard: some View {
-        WidgetPhotoSlotCard(slot: .small, refreshToken: refreshToken, onPick: { activeSlot = .small }, onReset: reset(.small))
+        WidgetPhotoSlotCard(slot: .small, refreshToken: refreshToken, onPick: { onPick(.small) }, onReset: reset(.small))
     }
 
     private var mediumCard: some View {
-        WidgetPhotoSlotCard(slot: .medium, refreshToken: refreshToken, onPick: { activeSlot = .medium }, onReset: reset(.medium))
+        WidgetPhotoSlotCard(slot: .medium, refreshToken: refreshToken, onPick: { onPick(.medium) }, onReset: reset(.medium))
     }
 
     private var largeCard: some View {
-        WidgetPhotoSlotCard(slot: .large, refreshToken: refreshToken, onPick: { activeSlot = .large }, onReset: reset(.large))
+        WidgetPhotoSlotCard(slot: .large, refreshToken: refreshToken, onPick: { onPick(.large) }, onReset: reset(.large))
     }
 
     private var privacyNote: some View {
@@ -183,7 +176,7 @@ private struct WidgetPhotoSlotCard: View {
     }
 }
 
-private struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
+struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
     let slot: WidgetPhotoSlot
     let onFinished: () -> Void
 
