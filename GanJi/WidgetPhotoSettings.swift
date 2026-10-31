@@ -214,7 +214,11 @@ private struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             guard let provider = results.first?.itemProvider,
                   provider.canLoadObject(ofClass: UIImage.self) else {
-                picker.dismiss(animated: true, completion: onFinished)
+                // Let SwiftUI dismiss the sheet by clearing activeSlot in onFinished.
+                // Avoid dismissing the same presentation through both UIKit and SwiftUI.
+                DispatchQueue.main.async {
+                    onFinished()
+                }
                 return
             }
 
@@ -229,10 +233,10 @@ private struct WidgetPhotoLibraryPicker: UIViewControllerRepresentable {
                 }
 
                 DispatchQueue.main.async {
-                    picker.dismiss(animated: true) {
-                        WidgetCenter.shared.reloadAllTimelines()
-                        onFinished()
-                    }
+                    // The parent .sheet(item:) owns presentation state. Clearing activeSlot
+                    // in onFinished dismisses the picker without a second UIKit dismissal.
+                    WidgetCenter.shared.reloadAllTimelines()
+                    onFinished()
                 }
             }
         }
