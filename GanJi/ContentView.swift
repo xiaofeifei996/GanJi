@@ -45,7 +45,7 @@ struct ContentView: View {
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
-    @State private var showRegionPicker = false
+    @State private var activeRootSheet: RootSheet?
     @State private var homeRegionExpanded = false
     @State private var selectedPickerProvinceCode: Int = 450000
     @State private var selectedPickerCityCode: Int = 450800
@@ -58,8 +58,6 @@ struct ContentView: View {
     @State private var loadingMarkets = false
     @State private var marketLoadError: String?
     @State private var selectedMarketID: String?
-    @State private var showDatePicker = false
-    @State private var showWidgetPhotoSettings = false
     @State private var sheetExpanded = false
     // The floating map controls can be repositioned by long-pressing and dragging.
     @State private var mapControlOffset: CGSize = .zero
@@ -248,13 +246,15 @@ struct ContentView: View {
                     region.span = MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                 }
             }
-            .sheet(isPresented: $showDatePicker) {
+            .sheet(item: $activeRootSheet) { sheet in
+                switch sheet {
+            case .date: {
                 NavigationView {
                     VStack(spacing: 18) {
                         DatePicker("选择赶集日期", selection: $selectedDate, displayedComponents: .date)
                             .datePickerStyle(GraphicalDatePickerStyle())
                             .padding()
-                        Button("完成") { showDatePicker = false }
+                        Button("完成") { activeRootSheet = nil }
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -265,18 +265,18 @@ struct ContentView: View {
                     }
                     .navigationTitle("选择日期")
                     .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showDatePicker = false } } }
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { activeRootSheet = nil } } }
                 }
             }
-            .sheet(isPresented: $showWidgetPhotoSettings) {
+            case .widgetPhoto: {
                 WidgetPhotoSettingsView()
             }
-            .sheet(isPresented: $showRegionPicker) {
+            case .region: {
                 VStack(spacing: 0) {
                     Capsule().fill(Color.gray.opacity(0.28)).frame(width: 38, height: 5).padding(.top, 10)
                     HStack(spacing: 12) {
                         Button {
-                            showRegionPicker = false
+                            activeRootSheet = nil
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 23))
@@ -292,7 +292,7 @@ struct ContentView: View {
                         Button {
                             // The sheet blocks the underlying Dock, so provide a direct
                             // route to Home while the region picker is open.
-                            showRegionPicker = false
+                            activeRootSheet = nil
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showMainPage = false
                                 homeTab = .home
@@ -324,7 +324,7 @@ struct ContentView: View {
                         .frame(height: 34)
                     HStack(spacing: 14) {
                         Button {
-                            showRegionPicker = false
+                            activeRootSheet = nil
                         } label: {
                             Text("取消")
                                 .font(.system(size: 17, weight: .medium))
@@ -338,7 +338,7 @@ struct ContentView: View {
                                 ?? pickerProvinces.first(where: { $0.code == selectedPickerProvinceCode }) {
                                 chooseRegion(option)
                             } else {
-                                showRegionPicker = false
+                                activeRootSheet = nil
                             }
                         } label: {
                             Text("确定")
@@ -372,9 +372,16 @@ struct ContentView: View {
                         alignPickerToSelectedRegion()
                     }
                 }
+
             }
-        }
+                }
+            }
         .preferredColorScheme(.light)
+    }
+
+    private enum RootSheet: String, Identifiable {
+        case date, widgetPhoto, region
+        var id: String { rawValue }
     }
 
     private enum HomeTab { case home, favorites, region, map }
@@ -414,7 +421,7 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 0)
                 Button {
-                    showWidgetPhotoSettings = true
+                    activeRootSheet = .widgetPhoto
                 } label: {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 18, weight: .semibold))
@@ -709,7 +716,7 @@ struct ContentView: View {
                             .lineLimit(1)
                     }
                     Spacer(minLength: 4)
-                    Button { showRegionPicker = true } label: {
+                    Button { activeRootSheet = .region } label: {
                         HStack(spacing: 5) {
                             Text("切换地区")
                                 .font(.system(size: 12, weight: .semibold))
@@ -969,8 +976,8 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.12, green: 0.17, blue: 0.23))
                 Spacer(minLength: 0)
                 Button {
-                    showRegionPicker = false
-                    showDatePicker = false
+                    activeRootSheet = nil
+                    activeRootSheet = nil
                     withAnimation(.easeInOut(duration: 0.2)) { showMainPage = false }
                 } label: {
                     Image(systemName: "xmark")
@@ -983,7 +990,7 @@ struct ContentView: View {
                 .accessibilityLabel("关闭地图页面")
             }
             HStack(spacing: 12) {
-                Button { showRegionPicker = true } label: {
+                Button { activeRootSheet = .region } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "mappin.and.ellipse").font(.system(size: 17, weight: .semibold))
                         Text(selectedAreaDisplayName ?? MarketStore.availableAreas.first(where: { $0.code == selectedAreaCode })?.name ?? "选择地区")
@@ -1014,7 +1021,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                Button { showDatePicker = true } label: {
+                Button { activeRootSheet = .date } label: {
                     VStack(alignment: .trailing, spacing: 3) {
                         HStack(spacing: 4) {
                             Text(LunarCalendar.shortDate(selectedDate))
@@ -1081,7 +1088,7 @@ struct ContentView: View {
                     .accessibilityLabel("清除搜索")
                 }
                 Rectangle().fill(Color(red: 0.85, green: 0.87, blue: 0.81)).frame(width: 1, height: 24)
-                Button { showRegionPicker = true } label: {
+                Button { activeRootSheet = .region } label: {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(Color(red: 0.17, green: 0.34, blue: 0.23))
@@ -1592,7 +1599,7 @@ struct ContentView: View {
         selectedAreaCode = option.code
         selectedAreaDisplayName = option.name
         selectedMarketID = nil
-        showRegionPicker = false
+        activeRootSheet = nil
         // Switching regions should dismiss search/keyboard and restore the nearby-markets panel.
         isPlaceSearchFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
