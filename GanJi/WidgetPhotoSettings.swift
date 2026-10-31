@@ -111,7 +111,6 @@ struct WidgetPhotoSettingsView: View {
                         }
                         .padding(14)
                         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-                        .id(refreshID)
                     }
 
                     Text("照片只保存在本机 App Group 共享空间，不会上传到服务器。")
