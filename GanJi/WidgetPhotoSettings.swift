@@ -168,7 +168,7 @@ private struct WidgetPhotoSlotCard: View {
                 Label(slot.image == nil ? "从相册选择" : "更换照片", systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
-                    .background(Color.ganjiBlue, in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color(red: 0.16, green: 0.43, blue: 0.94), in: RoundedRectangle(cornerRadius: 12))
                     .foregroundColor(.white)
             }
             Button(action: onReset) {
