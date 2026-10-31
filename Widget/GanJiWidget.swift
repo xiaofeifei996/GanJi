@@ -90,10 +90,25 @@ private enum WidgetPalette {
 }
 
 private struct WidgetBackdrop: View {
+    @Environment(\.widgetFamily) private var family
+
     private var marketPhoto: UIImage? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
         ) else { return nil }
+
+        let customFileName: String
+        switch family {
+        case .systemSmall: customFileName = "GanJiWidgetPhoto-small.jpg"
+        case .systemMedium: customFileName = "GanJiWidgetPhoto-medium.jpg"
+        default: customFileName = "GanJiWidgetPhoto-large.jpg"
+        }
+
+        // A size-specific photo takes priority; otherwise keep the shared market photo.
+        let customURL = container.appendingPathComponent(customFileName)
+        if let customImage = UIImage(contentsOfFile: customURL.path) {
+            return customImage
+        }
         return UIImage(contentsOfFile: container.appendingPathComponent("GanJiWidgetMarket.jpg").path)
     }
 
