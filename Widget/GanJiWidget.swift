@@ -429,7 +429,7 @@ struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
+        let configuration = StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
             GanJiWidgetView(entry: entry)
                 // WidgetKit redacts gallery placeholders by default, which turns the
                 // small/medium previews into gray skeletons. Keep our designed preview visible.
@@ -437,7 +437,15 @@ struct GanJiWidget: Widget {
                 .ganjiWidgetBackground()
         }
         .configurationDisplayName("赶集日记")
-        .description("查看今天、明天和后天的赶集安排")
+        .description("查看今天、明天、后天的赶集安排")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+
+        // This widget's photograph is essential content, not a decorative background.
+        // Keep it visible in iOS 17+ contexts that otherwise remove widget backgrounds.
+        if #available(iOSApplicationExtension 17.0, *) {
+            configuration.containerBackgroundRemovable(false)
+        } else {
+            configuration
+        }
     }
 }
