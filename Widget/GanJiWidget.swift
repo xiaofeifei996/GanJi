@@ -18,7 +18,9 @@ private struct GanJiWidgetProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (GanJiWidgetEntry) -> Void) {
-        refreshWidgetPhoto { completion(makeEntry()) }
+        // Widget gallery previews must be returned immediately. Waiting for a network
+        // image download can make iOS show its generic gray placeholder for small/medium.
+        completion(makeEntry())
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiWidgetEntry>) -> Void) {
