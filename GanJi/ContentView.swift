@@ -47,6 +47,7 @@ struct ContentView: View {
     @State private var selectedAreaCode: Int = 450881
     @State private var activeRootSheet: RootSheet?
     @State private var pendingWidgetPhotoSlot: WidgetPhotoSlot?
+    @State private var activeWidgetPhotoPickerSlot: WidgetPhotoSlot?
     @State private var homeRegionExpanded = false
     @State private var selectedPickerProvinceCode: Int = 450000
     @State private var selectedPickerCityCode: Int = 450800
@@ -247,7 +248,10 @@ struct ContentView: View {
                     region.span = MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                 }
             }
-            .sheet(item: $activeRootSheet, onDismiss: {}) { sheet in
+            .sheet(item: $activeRootSheet, onDismiss: {
+                activeWidgetPhotoPickerSlot = pendingWidgetPhotoSlot
+                pendingWidgetPhotoSlot = nil
+            }) { sheet in
                 switch sheet {
             case .date:
                 NavigationView {
@@ -378,7 +382,7 @@ struct ContentView: View {
             }
             }
         .background(
-            WidgetPhotoPickerHost(requestedSlot: $pendingWidgetPhotoSlot) {
+            WidgetPhotoPickerHost(requestedSlot: $activeWidgetPhotoPickerSlot) {
                 WidgetCenter.shared.reloadAllTimelines()
             }
             .frame(width: 0, height: 0)
