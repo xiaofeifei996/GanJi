@@ -78,15 +78,15 @@ private struct GanJiWidgetProvider: TimelineProvider {
 }
 
 private enum WidgetPalette {
-    static let forest = Color.white
-    static let leaf = Color(red: 0.72, green: 0.91, blue: 0.66)
-    static let lime = Color(red: 0.78, green: 0.87, blue: 0.57)
+    static let forest = Color(red: 0.98, green: 0.91, blue: 0.76)
+    static let leaf = Color(red: 0.83, green: 0.78, blue: 0.52)
+    static let lime = Color(red: 0.91, green: 0.78, blue: 0.55)
     static let paper = Color.white
-    static let ink = Color.white
-    static let secondary = Color.white.opacity(0.88)
+    static let ink = Color(red: 0.99, green: 0.95, blue: 0.86)
+    static let secondary = Color(red: 0.98, green: 0.91, blue: 0.79).opacity(0.92)
     static let orange = Color(red: 0.88, green: 0.43, blue: 0.20)
-    static let blue = Color(red: 0.30, green: 0.48, blue: 0.61)
-    static let line = Color.white.opacity(0.72)
+    static let blue = Color(red: 0.70, green: 0.78, blue: 0.72)
+    static let line = Color(red: 0.98, green: 0.91, blue: 0.79).opacity(0.62)
 }
 
 private struct WidgetBackdrop: View {
@@ -160,8 +160,8 @@ private struct GanJiWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     private var dayNumber: String { entry.date.formatted(.dateTime.day()) }
-    private var weekday: String { entry.date.formatted(.dateTime.weekday(.wide)) }
-    private var month: String { entry.date.formatted(.dateTime.month(.abbreviated)) }
+    private var weekday: String { entry.date.formatted(.dateTime.weekday(.wide).locale(Locale(identifier: "zh_CN"))) }
+    private var month: String { "\(Calendar.current.component(.month, from: entry.date))月" }
     private var totalCount: Int { entry.today.count + entry.tomorrow.count + entry.dayAfter.count }
 
     var body: some View {
@@ -191,7 +191,7 @@ private struct GanJiWidgetView: View {
                     .minimumScaleFactor(0.55)
                     .lineLimit(1)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(month.uppercased())
+                    Text(month)
                         .font(.system(size: 10, weight: .heavy, design: .rounded))
                         .tracking(1.1)
                     Text(weekday)
@@ -243,7 +243,7 @@ private struct GanJiWidgetView: View {
                         .foregroundStyle(WidgetPalette.forest)
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
-                    Text(month.uppercased())
+                    Text(month)
                         .font(.system(size: 9, weight: .heavy, design: .rounded))
                         .foregroundStyle(WidgetPalette.secondary)
                 }
@@ -295,7 +295,7 @@ private struct GanJiWidgetView: View {
                     .tracking(-5)
                     .foregroundStyle(WidgetPalette.forest)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(month.uppercased())
+                    Text(month)
                         .font(.system(size: 11, weight: .heavy, design: .rounded))
                         .tracking(1)
                         .foregroundStyle(WidgetPalette.secondary)
@@ -308,7 +308,7 @@ private struct GanJiWidgetView: View {
                     Text("未来三日")
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(WidgetPalette.secondary)
-                    Text("\(totalCount) 场集市")
+                    Text("\(totalCount) 场赶集")
                         .font(.system(size: 16, weight: .heavy, design: .rounded))
                         .foregroundStyle(WidgetPalette.forest)
                 }
@@ -319,9 +319,9 @@ private struct GanJiWidgetView: View {
                 .frame(height: 1)
 
             VStack(spacing: 7) {
-                agendaCard(title: "今天", subtitle: "TODAY", markets: entry.today, tint: WidgetPalette.leaf)
-                agendaCard(title: "明天", subtitle: "TOMORROW", markets: entry.tomorrow, tint: WidgetPalette.blue)
-                agendaCard(title: "后天", subtitle: "DAY AFTER", markets: entry.dayAfter, tint: WidgetPalette.orange)
+                agendaCard(title: "今天", subtitle: "今日赶集", markets: entry.today, tint: WidgetPalette.leaf)
+                agendaCard(title: "明天", subtitle: "提前安排", markets: entry.tomorrow, tint: WidgetPalette.blue)
+                agendaCard(title: "后天", subtitle: "出行计划", markets: entry.dayAfter, tint: WidgetPalette.orange)
             }
             Spacer(minLength: 0)
         }
@@ -336,7 +336,7 @@ private struct GanJiWidgetView: View {
             Circle()
                 .fill(WidgetPalette.leaf.opacity(0.55))
                 .frame(width: 3, height: 3)
-            Text("GANJI")
+            Text("赶集生活")
                 .font(.system(size: 8, weight: .bold, design: .rounded))
                 .tracking(1)
         }
