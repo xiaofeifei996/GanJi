@@ -46,6 +46,8 @@ struct ContentView: View {
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
     @State private var activeRootSheet: RootSheet?
+    @State private var pendingWidgetPhotoSlot: WidgetPhotoSlot?
+    @State private var activeWidgetPhotoPickerSlot: WidgetPhotoSlot?
     @State private var homeRegionExpanded = false
     @State private var selectedPickerProvinceCode: Int = 450000
     @State private var selectedPickerCityCode: Int = 450800
@@ -246,7 +248,12 @@ struct ContentView: View {
                     region.span = MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                 }
             }
-            .sheet(item: $activeRootSheet) { sheet in
+            .sheet(item: $activeRootSheet, onDismiss: {
+                if let slot = pendingWidgetPhotoSlot {
+                    pendingWidgetPhotoSlot = nil
+                    activeWidgetPhotoPickerSlot = slot
+                }
+            }) { sheet in
                 switch sheet {
             case .date:
                 NavigationView {
@@ -269,13 +276,9 @@ struct ContentView: View {
                 }
             case .widgetPhoto:
                 WidgetPhotoSettingsView(onPick: { slot in
-                    activeRootSheet = .widgetPhotoPicker(slot)
-                })
-            case .widgetPhotoPicker(let slot):
-                WidgetPhotoLibraryPicker(slot: slot) {
-                    WidgetCenter.shared.reloadAllTimelines()
+                    pendingWidgetPhotoSlot = slot
                     activeRootSheet = nil
-                }
+                })
             case .region:
                 VStack(spacing: 0) {
                     Capsule().fill(Color.gray.opacity(0.28)).frame(width: 38, height: 5).padding(.top, 10)
@@ -380,21 +383,18 @@ struct ContentView: View {
             }
             }
             }
+        .fullScreenCover(item: $activeWidgetPhotoPickerSlot) { slot in
+            WidgetPhotoLibraryPicker(slot: slot) {
+                WidgetCenter.shared.reloadAllTimelines()
+                activeWidgetPhotoPickerSlot = nil
+            }
+        }
         .preferredColorScheme(.light)
     }
 
-    private enum RootSheet: Identifiable {
+    private enum RootSheet: String, Identifiable {
         case date, widgetPhoto, region
-        case widgetPhotoPicker(WidgetPhotoSlot)
-
-        var id: String {
-            switch self {
-            case .date: return "date"
-            case .widgetPhoto: return "widgetPhoto"
-            case .region: return "region"
-            case .widgetPhotoPicker(let slot): return "widgetPhotoPicker-\(slot.rawValue)"
-            }
-        }
+        var id: String { rawValue }
     }
 
     private enum HomeTab { case home, favorites, region, map }
