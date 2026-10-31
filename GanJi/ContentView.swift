@@ -268,7 +268,14 @@ struct ContentView: View {
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { activeRootSheet = nil } } }
                 }
             case .widgetPhoto:
-                WidgetPhotoSettingsView()
+                WidgetPhotoSettingsView(onPick: { slot in
+                    activeRootSheet = .widgetPhotoPicker(slot)
+                })
+            case .widgetPhotoPicker(let slot):
+                WidgetPhotoLibraryPicker(slot: slot) {
+                    WidgetCenter.shared.reloadAllTimelines()
+                    activeRootSheet = nil
+                }
             case .region:
                 VStack(spacing: 0) {
                     Capsule().fill(Color.gray.opacity(0.28)).frame(width: 38, height: 5).padding(.top, 10)
@@ -376,9 +383,18 @@ struct ContentView: View {
         .preferredColorScheme(.light)
     }
 
-    private enum RootSheet: String, Identifiable {
+    private enum RootSheet: Identifiable {
         case date, widgetPhoto, region
-        var id: String { rawValue }
+        case widgetPhotoPicker(WidgetPhotoSlot)
+
+        var id: String {
+            switch self {
+            case .date: return "date"
+            case .widgetPhoto: return "widgetPhoto"
+            case .region: return "region"
+            case .widgetPhotoPicker(let slot): return "widgetPhotoPicker-\(slot.rawValue)"
+            }
+        }
     }
 
     private enum HomeTab { case home, favorites, region, map }
