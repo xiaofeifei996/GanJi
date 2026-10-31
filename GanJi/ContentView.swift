@@ -248,7 +248,7 @@ struct ContentView: View {
             }
             .sheet(item: $activeRootSheet) { sheet in
                 switch sheet {
-            case .date: {
+            case .date:
                 NavigationView {
                     VStack(spacing: 18) {
                         DatePicker("选择赶集日期", selection: $selectedDate, displayedComponents: .date)
@@ -267,11 +267,9 @@ struct ContentView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { activeRootSheet = nil } } }
                 }
-            }
-            case .widgetPhoto: {
+            case .widgetPhoto:
                 WidgetPhotoSettingsView()
-            }
-            case .region: {
+            case .region:
                 VStack(spacing: 0) {
                     Capsule().fill(Color.gray.opacity(0.28)).frame(width: 38, height: 5).padding(.top, 10)
                     HStack(spacing: 12) {
@@ -371,9 +369,6 @@ struct ContentView: View {
                         await loadNationalRegions()
                         alignPickerToSelectedRegion()
                     }
-                }
-
-            }
                 }
             }
         .preferredColorScheme(.light)
