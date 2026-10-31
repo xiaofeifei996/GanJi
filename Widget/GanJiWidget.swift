@@ -101,10 +101,10 @@ private struct WidgetBackdrop: View {
                 if let marketPhoto {
                     if #available(iOSApplicationExtension 18.0, *) {
                         Image(uiImage: marketPhoto)
-                            // Preserve photographic color when iOS applies the Home Screen
-                            // tinted/accented widget appearance.
-                            .widgetAccentedRenderingMode(.fullColor)
                             .resizable()
+                            // Apply the image-specific rendering mode before the chain
+                            // becomes a generic SwiftUI View.
+                            .widgetAccentedRenderingMode(.fullColor)
                             .scaledToFill()
                             .frame(width: proxy.size.width, height: proxy.size.height)
                             .clipped()
