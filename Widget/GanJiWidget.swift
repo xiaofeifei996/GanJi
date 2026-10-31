@@ -443,9 +443,9 @@ struct GanJiWidget: Widget {
         // This widget's photograph is essential content, not a decorative background.
         // Keep it visible in iOS 17+ contexts that otherwise remove widget backgrounds.
         if #available(iOSApplicationExtension 17.0, *) {
-            configuration.containerBackgroundRemovable(false)
+            return configuration.containerBackgroundRemovable(false)
         } else {
-            configuration
+            return configuration
         }
     }
 }
