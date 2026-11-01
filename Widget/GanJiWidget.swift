@@ -419,16 +419,16 @@ private struct GanJiWidgetView: View {
 }
 
 private extension View {
-    /// Draws the backdrop inside the widget's own content instead of handing it
-    /// to WidgetKit as a container background. On iOS 26 the system composites a
-    /// container background behind its own plate, where it can end up hidden;
-    /// a normal background travels with the content, so it is always drawn.
+    /// Kept for the Lock Screen and the gallery, where a plain background is all
+    /// that is needed; the Home Screen photo is drawn as the widget's base layer
+    /// in GanJiWidget's configuration body.
     func ganjiWidgetBackground() -> some View {
         background {
             WidgetBackdrop()
                 .ignoresSafeArea()
         }
     }
+
 }
 
 @main
@@ -437,11 +437,14 @@ struct GanJiWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
-            GanJiWidgetView(entry: entry)
-                // WidgetKit redacts gallery placeholders by default, which turns the
-                // small/medium previews into gray skeletons. Keep our designed preview visible.
-                .unredacted()
-                .ganjiWidgetBackground()
+            WidgetBackdrop()
+                .overlay {
+                    GanJiWidgetView(entry: entry)
+                        // WidgetKit redacts gallery placeholders by default, which turns
+                        // the small/medium previews into gray skeletons. Keep our designed
+                        // preview visible.
+                        .unredacted()
+                }
         }
         // The layouts pad their own content, so the default .widget content margins
         // would only inset the photograph and the text twice.
