@@ -157,15 +157,6 @@ private struct WidgetBackdrop: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
-            .overlay(alignment: .bottom) {
-                Text(diagnostic)
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(.red, in: RoundedRectangle(cornerRadius: 4))
-                    .padding(4)
-            }
         }
     }
 }
@@ -244,6 +235,17 @@ private struct GanJiWidgetView: View {
         .padding(family == .systemSmall ? 13 : 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .widgetURL(URL(string: "ganji://home"))
+        .overlay(alignment: .bottom) {
+            if !entry.diagnostic.isEmpty {
+                Text(entry.diagnostic)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.red, in: RoundedRectangle(cornerRadius: 4))
+                    .padding(4)
+            }
+        }
     }
 
     // 小号：突出日期与今日是否有集市，减少次要信息。
@@ -476,20 +478,39 @@ private struct GanJiWidgetView: View {
     }
 }
 
+private extension View {
+    /// Photo as the widget's container background on iOS 17+, plain background
+    /// below that.
+    @ViewBuilder
+    func ganjiContainerBackground(photo: UIImage?, diagnostic: String) -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            self.containerBackground(for: .widget) {
+                WidgetBackdrop(photo: photo, diagnostic: diagnostic)
+            }
+        } else {
+            self.background {
+                WidgetBackdrop(photo: photo, diagnostic: diagnostic)
+                    .ignoresSafeArea()
+            }
+        }
+    }
+}
+
 @main
 struct GanJiWidget: Widget {
     let kind = ganJiWidgetKind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
-            WidgetBackdrop(photo: entry.photo, diagnostic: entry.diagnostic)
-                .overlay {
-                    GanJiWidgetView(entry: entry)
-                        // WidgetKit redacts gallery placeholders by default, which turns
-                        // the small/medium previews into gray skeletons. Keep our designed
-                        // preview visible.
-                        .unredacted()
-                }
+            // The photo goes through the container background, the one channel
+            // WidgetKit guarantees to draw behind a widget, and only the text is
+            // laid on top of it.
+            GanJiWidgetView(entry: entry)
+                // WidgetKit redacts gallery placeholders by default, which turns
+                // the small/medium previews into gray skeletons. Keep our designed
+                // preview visible.
+                .unredacted()
+                .ganjiContainerBackground(photo: entry.photo, diagnostic: entry.diagnostic)
         }
         // The layouts pad their own content, so the default .widget content margins
         // would only inset the photograph and the text twice.
