@@ -557,6 +557,15 @@ struct GanJiWidget: Widget {
         .configurationDisplayName("赶集日记 · 田园集市")
         .description("岭南乡土插画风，查看今日、明日与后日圩日及农历干支")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        // The full-bleed illustration is the widget's background. Without this,
+        // the system applies the default `.widget` content margins on iOS 17+,
+        // and on iOS 26 that reads as the glass plate showing through around the
+        // canvas. The layouts draw their own padding, so nothing is lost.
+        .contentMarginsDisabled()
+        // Let WidgetKit strip the container background where it wants to (such as
+        // the Lock Screen), which is the supported path for a custom canvas
+        // instead of leaving it behind the system glass.
+        .containerBackgroundRemovable()
     }
 }
 
