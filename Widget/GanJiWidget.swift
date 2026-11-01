@@ -1,6 +1,9 @@
 import SwiftUI
 import WidgetKit
 import UIKit
+import os
+
+private let ganJiLog = Logger(subsystem: "com.ganji.diary.widget", category: "photo")
 
 private let ganJiGroupID = "group.com.ganji.diary"
 private let ganJiWidgetKind = "GanJiWidget"
@@ -165,7 +168,10 @@ enum WidgetPhotoStore {
     static func photo(for family: WidgetFamily) -> UIImage? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
-        ) else { return nil }
+        ) else {
+            ganJiLog.error("no App Group container for \(ganJiGroupID, privacy: .public)")
+            return nil
+        }
 
         let customFileName: String
         switch family {
@@ -174,9 +180,16 @@ enum WidgetPhotoStore {
         default: customFileName = "GanJiWidgetPhoto-large.jpg"
         }
 
-        // A size-specific photo takes priority; otherwise keep the shared market photo.
-        if let image = image(in: container, named: customFileName) { return image }
-        return image(in: container, named: "GanJiWidgetMarket.jpg")
+        let names = [customFileName, "GanJiWidgetMarket.jpg"]
+        for name in names {
+            let url = container.appendingPathComponent(name)
+            let exists = FileManager.default.fileExists(atPath: url.path)
+            let image = image(in: container, named: name)
+            ganJiLog.notice("photo \(name, privacy: .public) exists=\(exists, privacy: .public) decoded=\(image != nil, privacy: .public) in \(container.path, privacy: .public)")
+            if let image { return image }
+        }
+        ganJiLog.error("no photo found for family, container contents=\(((try? FileManager.default.contentsOfDirectory(atPath: container.path)) ?? []).joined(separator: ","), privacy: .public)")
+        return nil
     }
 
     private static func image(in container: URL, named name: String) -> UIImage? {
