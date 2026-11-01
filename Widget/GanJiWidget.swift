@@ -90,7 +90,7 @@ private struct GanJiWidgetProvider: TimelineProvider {
             today: markets.filter { MarketStore.opens(on: today, market: $0) },
             tomorrow: markets.filter { MarketStore.opens(on: tomorrow, market: $0) },
             dayAfter: markets.filter { MarketStore.opens(on: dayAfter, market: $0) },
-            photo: photoResult.photo,
+            photo: WidgetPhotoStore.selfTest,
             diagnostic: "OS\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion) \(photoResult.status)"
         )
     }
@@ -176,6 +176,26 @@ enum WidgetPhotoStore {
         let photo: UIImage?
         let status: String
     }
+
+    /// Temporary self-test: paints a photo-sized image carrying a solid colour
+    /// block and a caption, so the widget can show whether any bitmap and any
+    /// text reach the screen at all.
+    static let selfTest: UIImage = {
+        let size = CGSize(width: 600, height: 400)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            UIColor(red: 0.55, green: 0.20, blue: 0.75, alpha: 1).setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            UIColor(red: 0.95, green: 0.85, blue: 0.10, alpha: 1).setFill()
+            ctx.fill(CGRect(x: 40, y: 120, width: 520, height: 160))
+            let text = "PHOTO OK"
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.boldSystemFont(ofSize: 64),
+                .foregroundColor: UIColor.black
+            ]
+            text.draw(at: CGPoint(x: 170, y: 170), withAttributes: attrs)
+        }
+    }()
 
     static func load(for family: WidgetFamily) -> Result {
         guard let container = FileManager.default.containerURL(
