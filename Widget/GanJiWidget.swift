@@ -485,39 +485,22 @@ private struct GanJiWidgetView: View {
     }
 }
 
-private extension View {
-    /// Photo as the widget's container background on iOS 17+, plain background
-    /// below that.
-    @ViewBuilder
-    func ganjiContainerBackground(photo: UIImage?, diagnostic: String) -> some View {
-        if #available(iOSApplicationExtension 17.0, *) {
-            self.containerBackground(for: .widget) {
-                WidgetBackdrop(photo: photo, diagnostic: diagnostic)
-            }
-        } else {
-            self.background {
-                WidgetBackdrop(photo: photo, diagnostic: diagnostic)
-                    .ignoresSafeArea()
-            }
-        }
-    }
-}
-
 @main
 struct GanJiWidget: Widget {
     let kind = ganJiWidgetKind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
-            // The photo goes through the container background, the one channel
-            // WidgetKit guarantees to draw behind a widget, and only the text is
-            // laid on top of it.
-            GanJiWidgetView(entry: entry)
-                // WidgetKit redacts gallery placeholders by default, which turns
-                // the small/medium previews into gray skeletons. Keep our designed
-                // preview visible.
-                .unredacted()
-                .ganjiContainerBackground(photo: entry.photo, diagnostic: entry.diagnostic)
+            // Draw the photo as the base layer of the widget's own content for
+            // every family, one path for all three.
+            ZStack {
+                WidgetBackdrop(photo: entry.photo, diagnostic: entry.diagnostic)
+                GanJiWidgetView(entry: entry)
+                    // WidgetKit redacts gallery placeholders by default, which turns
+                    // the small/medium previews into gray skeletons. Keep our designed
+                    // preview visible.
+                    .unredacted()
+            }
         }
         // The layouts pad their own content, so the default .widget content margins
         // would only inset the photograph and the text twice.
