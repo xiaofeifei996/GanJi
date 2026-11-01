@@ -89,69 +89,63 @@ private enum WidgetPalette {
     static let line = Color(red: 0.98, green: 0.91, blue: 0.79).opacity(0.62)
 }
 
-/// The illustrated backdrop is the bundled VillageWatercolor artwork, so it is
-/// always present: nothing here depends on a photo downloaded while the timeline
-/// is built. A photo the user picked for this widget size (or the downloaded
-/// market photo) is drawn over it when it exists.
+/// The backdrop is the photo the user picked for this widget size, else the
+/// downloaded market photo, else a plain gradient so the widget is never empty.
+/// It is drawn on the widget's own content (see ganjiWidgetBackground()) so it
+/// cannot be composited away behind the system plate.
 private struct WidgetBackdrop: View {
     @Environment(\.widgetFamily) private var family
-    @Environment(\.colorScheme) private var colorScheme
 
-    /// A photo the user chose for this size, otherwise the downloaded market photo.
-    private func storedPhoto(named name: String) -> UIImage? {
+    private var marketPhoto: UIImage? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
         ) else { return nil }
-        let url = container.appendingPathComponent(name)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return UIImage(contentsOfFile: url.path)
-    }
 
-    /// The artwork is 1200x650, so the crop is anchored on the part of it that
-    /// keeps the village and the field in view for each family.
-    private var artworkAlignment: Alignment {
+        let customFileName: String
         switch family {
-        case .systemSmall: return .center
-        case .systemMedium: return Alignment(horizontal: .center, vertical: .bottom)
-        default: return .center
+        case .systemSmall: customFileName = "GanJiWidgetPhoto-small.jpg"
+        case .systemMedium: customFileName = "GanJiWidgetPhoto-medium.jpg"
+        default: customFileName = "GanJiWidgetPhoto-large.jpg"
         }
+
+        // A size-specific photo takes priority; otherwise keep the shared market photo.
+        let customURL = container.appendingPathComponent(customFileName)
+        if let customImage = UIImage(contentsOfFile: customURL.path) {
+            return customImage
+        }
+        return UIImage(contentsOfFile: container.appendingPathComponent("GanJiWidgetMarket.jpg").path)
     }
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Image("VillageWatercolor")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: artworkAlignment)
-                    .clipped()
-                    .overlay(Color.black.opacity(colorScheme == .dark ? 0.34 : 0.0))
-
-                if let photo = customPhoto(photoName) {
-                    Image(uiImage: photo)
+                if let marketPhoto {
+                    Image(uiImage: marketPhoto)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
+                } else {
+                    LinearGradient(
+                        colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 }
+                // A restrained dark wash keeps the light text legible.
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.42),
+                        Color.black.opacity(0.18),
+                        Color.black.opacity(0.52)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .clipped()
-        .accessibilityHidden(true)
-    }
-
-    private var photoName: String {
-        switch family {
-        case .systemSmall: return "GanJiWidgetPhoto-small.jpg"
-        case .systemMedium: return "GanJiWidgetPhoto-medium.jpg"
-        default: return "GanJiWidgetPhoto-large.jpg"
-        }
-    }
-
-    private func customPhoto(_ name: String) -> UIImage? {
-        if let image = storedPhoto(named: name) { return image }
-        return storedPhoto(named: "GanJiWidgetMarket.jpg")
     }
 }
 
