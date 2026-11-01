@@ -269,55 +269,62 @@ private struct GanJiWidgetView: View {
     }
 
     // 小号：突出日期与今日是否有集市，减少次要信息。
+    // Sizes are kept inside the ~158pt small widget: 68pt numerals plus two
+    // flexible spacers overflowed it, and an overflowing VStack pushed the
+    // photo background out of the widget on iOS 26.
     private var small: some View {
         VStack(alignment: .leading, spacing: 0) {
             brandLine
-            Spacer(minLength: 5)
 
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Spacer(minLength: 2)
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(dayNumber)
-                    .font(.system(size: 68, weight: .black, design: .rounded))
-                    .tracking(-5)
+                    .font(.system(size: 54, weight: .black, design: .rounded))
+                    .tracking(-4)
                     .foregroundStyle(WidgetPalette.forest)
-                    .minimumScaleFactor(0.55)
+                    .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                VStack(alignment: .leading, spacing: 2) {
+                    .layoutPriority(1)
+                VStack(alignment: .leading, spacing: 1) {
                     Text(month)
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
-                        .tracking(1.1)
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .tracking(1)
                     Text(weekday)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 9, weight: .semibold))
                 }
                 .foregroundStyle(WidgetPalette.secondary)
+                .fixedSize()
             }
 
-            Spacer(minLength: 4)
-            HStack(spacing: 8) {
+            Spacer(minLength: 2)
+            HStack(spacing: 6) {
                 Image(systemName: entry.today.isEmpty ? "sun.max.fill" : "basket.fill")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 31, height: 31)
-                    .background(entry.today.isEmpty ? WidgetPalette.orange : WidgetPalette.leaf, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+                    .frame(width: 26, height: 26)
+                    .background(entry.today.isEmpty ? WidgetPalette.orange : WidgetPalette.leaf, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                VStack(alignment: .leading, spacing: 1) {
                     Text(entry.today.isEmpty ? "今日休市" : "今日开集")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 8, weight: .medium))
                         .foregroundStyle(WidgetPalette.secondary)
                     Text(entry.today.first?.name ?? "暂无安排")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(WidgetPalette.ink)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
                 Spacer(minLength: 0)
                 if entry.today.count > 1 {
                     Text("+\(entry.today.count - 1)")
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
                         .foregroundStyle(WidgetPalette.forest)
                 }
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(.white.opacity(0.55), lineWidth: 1))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(.white.opacity(0.55), lineWidth: 1))
         }
     }
 
