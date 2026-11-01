@@ -90,7 +90,7 @@ private struct GanJiWidgetProvider: TimelineProvider {
             today: markets.filter { MarketStore.opens(on: today, market: $0) },
             tomorrow: markets.filter { MarketStore.opens(on: tomorrow, market: $0) },
             dayAfter: markets.filter { MarketStore.opens(on: dayAfter, market: $0) },
-            photo: WidgetPhotoStore.selfTest,
+            photo: photoResult.photo,
             diagnostic: "OS\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion) \(photoResult.status)"
         )
     }
@@ -122,21 +122,11 @@ private struct WidgetBackdrop: View {
         GeometryReader { proxy in
             ZStack {
                 if let photo {
-                    // Drawn with Canvas instead of Image(uiImage:): a Canvas draws
-                    // the bitmap itself, which keeps the photo visible on iOS 26
-                    // where an image view inside a widget can end up composited
-                    // away behind the system plate. scaledToFill is done by hand.
-                    Canvas { context, size in
-                        guard let cg = photo.cgImage ?? photo.cgImageFromCIImage,
-                              cg.width > 0, cg.height > 0, size.width > 0, size.height > 0 else { return }
-                        let image = Image(decorative: cg, scale: 1, orientation: .up)
-                        let scale = max(size.width / CGFloat(cg.width), size.height / CGFloat(cg.height))
-                        let drawSize = CGSize(width: CGFloat(cg.width) * scale, height: CGFloat(cg.height) * scale)
-                        let origin = CGPoint(x: (size.width - drawSize.width) / 2,
-                                             y: (size.height - drawSize.height) / 2)
-                        context.draw(image, in: CGRect(origin: origin, size: drawSize))
-                    }
-                    .accessibilityHidden(true)
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
                 } else {
                     LinearGradient(
                         colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
@@ -161,14 +151,6 @@ private struct WidgetBackdrop: View {
     }
 }
 
-private extension UIImage {
-    /// Fallback for images that are backed by a CIImage (e.g. HEIC from PHPicker).
-    var cgImageFromCIImage: CGImage? {
-        guard let ci = ciImage else { return nil }
-        return CIContext().createCGImage(ci, from: ci.extent)
-    }
-}
-
 /// Loads the photo for one widget family from the App Group container.
 enum WidgetPhotoStore {
     /// The photo and a short status the widget can display on screen.
@@ -176,26 +158,6 @@ enum WidgetPhotoStore {
         let photo: UIImage?
         let status: String
     }
-
-    /// Temporary self-test: paints a photo-sized image carrying a solid colour
-    /// block and a caption, so the widget can show whether any bitmap and any
-    /// text reach the screen at all.
-    static let selfTest: UIImage = {
-        let size = CGSize(width: 600, height: 400)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { ctx in
-            UIColor(red: 0.55, green: 0.20, blue: 0.75, alpha: 1).setFill()
-            ctx.fill(CGRect(origin: .zero, size: size))
-            UIColor(red: 0.95, green: 0.85, blue: 0.10, alpha: 1).setFill()
-            ctx.fill(CGRect(x: 40, y: 120, width: 520, height: 160))
-            let text = "PHOTO OK"
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 64),
-                .foregroundColor: UIColor.black
-            ]
-            text.draw(at: CGPoint(x: 170, y: 170), withAttributes: attrs)
-        }
-    }()
 
     static func load(for family: WidgetFamily) -> Result {
         guard let container = FileManager.default.containerURL(
@@ -230,7 +192,25 @@ enum WidgetPhotoStore {
         let url = container.appendingPathComponent(name)
         guard let data = try? Data(contentsOf: url), !data.isEmpty,
               let image = UIImage(data: data), image.size.width > 0 else { return nil }
-        return image
+        return downsized(image)
+    }
+
+    /// WidgetKit renders a container background from a bitmap; a full-resolution
+    /// photo (the picked image is 1440x2558) can be too large and fail to draw,
+    /// which is why the widget falls back to nothing. Cap the decoded image to
+    /// what a widget needs (2x the largest family) so the drawing always works.
+    private static func downsized(_ image: UIImage) -> UIImage {
+        let maxDimension: CGFloat = 800
+        let scale = max(image.size.width, image.size.height)
+        guard scale > maxDimension else { return image }
+        let ratio = maxDimension / scale
+        let newSize = CGSize(width: (image.size.width * ratio).rounded(),
+                             height: (image.size.height * ratio).rounded())
+        guard newSize.width > 0, newSize.height > 0 else { return image }
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }
 
