@@ -89,137 +89,69 @@ private enum WidgetPalette {
     static let line = Color(red: 0.98, green: 0.91, blue: 0.79).opacity(0.62)
 }
 
-/// The illustrated backdrop is drawn, not loaded: nothing here depends on a
-/// downloaded file or on a bundled asset, so the widget always has a background
-/// even on the first launch, offline, or where WidgetKit insets the widget.
-private struct WidgetLandscape: View {
+/// The illustrated backdrop is the bundled VillageWatercolor artwork, so it is
+/// always present: nothing here depends on a photo downloaded while the timeline
+/// is built. A photo the user picked for this widget size (or the downloaded
+/// market photo) is drawn over it when it exists.
+private struct WidgetBackdrop: View {
+    @Environment(\.widgetFamily) private var family
     @Environment(\.colorScheme) private var colorScheme
 
-    private var dark: Bool { colorScheme == .dark }
+    /// A photo the user chose for this size, otherwise the downloaded market photo.
+    private func storedPhoto(named name: String) -> UIImage? {
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: ganJiGroupID
+        ) else { return nil }
+        let url = container.appendingPathComponent(name)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return UIImage(contentsOfFile: url.path)
+    }
+
+    /// The artwork is 1200x650, so the crop is anchored on the part of it that
+    /// keeps the village and the field in view for each family.
+    private var artworkAlignment: Alignment {
+        switch family {
+        case .systemSmall: return .center
+        case .systemMedium: return Alignment(horizontal: .center, vertical: .bottom)
+        default: return .center
+        }
+    }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            LinearGradient(
-                colors: dark
-                    ? [Color(red: 0.09, green: 0.17, blue: 0.16),
-                       Color(red: 0.16, green: 0.28, blue: 0.22),
-                       Color(red: 0.24, green: 0.33, blue: 0.20)]
-                    : [Color(red: 0.86, green: 0.93, blue: 0.94),
-                       Color(red: 0.98, green: 0.96, blue: 0.88),
-                       Color(red: 0.94, green: 0.90, blue: 0.72)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+        GeometryReader { proxy in
+            ZStack {
+                Image("VillageWatercolor")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: artworkAlignment)
+                    .clipped()
+                    .overlay(Color.black.opacity(colorScheme == .dark ? 0.34 : 0.0))
 
-            // Sun and haze.
-            Circle()
-                .fill(dark
-                      ? Color(red: 0.95, green: 0.74, blue: 0.42).opacity(0.55)
-                      : Color(red: 1.0, green: 0.82, blue: 0.48).opacity(0.85))
-                .frame(width: 46, height: 46)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, 14)
-                .padding(.trailing, 22)
-
-            // Far hills, then the field in two bands of green.
-            Ellipse()
-                .fill(dark ? Color(red: 0.20, green: 0.35, blue: 0.28) : Color(red: 0.78, green: 0.87, blue: 0.78))
-                .frame(width: 420, height: 130)
-                .offset(x: -70, y: 54)
-            Ellipse()
-                .fill(dark ? Color(red: 0.16, green: 0.30, blue: 0.23) : Color(red: 0.68, green: 0.81, blue: 0.66))
-                .frame(width: 380, height: 104)
-                .offset(x: 120, y: 60)
-            Ellipse()
-                .fill(dark ? Color(red: 0.12, green: 0.26, blue: 0.20) : Color(red: 0.52, green: 0.70, blue: 0.48))
-                .frame(width: 460, height: 92)
-                .offset(x: -20, y: 74)
-
-            // A row of village roofs on the horizon.
-            HStack(alignment: .bottom, spacing: 6) {
-                house(width: 20, height: 15)
-                house(width: 26, height: 19)
-                house(width: 16, height: 13)
+                if let photo = customPhoto(photoName) {
+                    Image(uiImage: photo)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                }
             }
-            .offset(x: 128, y: -52)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .accessibilityHidden(true)
     }
 
-    private func house(width: CGFloat, height: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            Roof()
-                .fill(Color(red: 0.76, green: 0.42, blue: 0.27))
-                .frame(width: width + 6, height: height * 0.45)
-            Rectangle()
-                .fill(dark ? Color(red: 0.80, green: 0.78, blue: 0.68) : Color(red: 0.99, green: 0.96, blue: 0.88))
-                .frame(width: width, height: height * 0.55)
-        }
-    }
-}
-
-private struct Roof: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { path in
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-            path.closeSubpath()
-        }
-    }
-}
-
-private struct WidgetBackdrop: View {
-    @Environment(\.widgetFamily) private var family
-
-    /// A photo the user chose for this size, otherwise the downloaded market
-    /// photo. Both are optional: the drawn landscape is always underneath.
-    private var marketPhoto: UIImage? {
-        guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: ganJiGroupID
-        ) else { return nil }
-
-        let customFileName: String
+    private var photoName: String {
         switch family {
-        case .systemSmall: customFileName = "GanJiWidgetPhoto-small.jpg"
-        case .systemMedium: customFileName = "GanJiWidgetPhoto-medium.jpg"
-        default: customFileName = "GanJiWidgetPhoto-large.jpg"
+        case .systemSmall: return "GanJiWidgetPhoto-small.jpg"
+        case .systemMedium: return "GanJiWidgetPhoto-medium.jpg"
+        default: return "GanJiWidgetPhoto-large.jpg"
         }
-
-        // A size-specific photo takes priority; otherwise keep the shared market photo.
-        let customURL = container.appendingPathComponent(customFileName)
-        if let customImage = UIImage(contentsOfFile: customURL.path) {
-            return customImage
-        }
-        return UIImage(contentsOfFile: container.appendingPathComponent("GanJiWidgetMarket.jpg").path)
     }
 
-    var body: some View {
-        ZStack {
-            WidgetLandscape()
-
-            if let marketPhoto {
-                Image(uiImage: marketPhoto)
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        // A restrained dark wash keeps the light text legible over either layer.
-        .overlay {
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.42),
-                    Color.black.opacity(0.18),
-                    Color.black.opacity(0.52)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+    private func customPhoto(_ name: String) -> UIImage? {
+        if let image = storedPhoto(named: name) { return image }
+        return storedPhoto(named: "GanJiWidgetMarket.jpg")
     }
 }
 
