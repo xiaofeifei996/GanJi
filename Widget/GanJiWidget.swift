@@ -89,9 +89,93 @@ private enum WidgetPalette {
     static let line = Color(red: 0.98, green: 0.91, blue: 0.79).opacity(0.62)
 }
 
+/// The illustrated backdrop is drawn, not loaded: nothing here depends on a
+/// downloaded file or on a bundled asset, so the widget always has a background
+/// even on the first launch, offline, or where WidgetKit insets the widget.
+private struct WidgetLandscape: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var dark: Bool { colorScheme == .dark }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            LinearGradient(
+                colors: dark
+                    ? [Color(red: 0.09, green: 0.17, blue: 0.16),
+                       Color(red: 0.16, green: 0.28, blue: 0.22),
+                       Color(red: 0.24, green: 0.33, blue: 0.20)]
+                    : [Color(red: 0.86, green: 0.93, blue: 0.94),
+                       Color(red: 0.98, green: 0.96, blue: 0.88),
+                       Color(red: 0.94, green: 0.90, blue: 0.72)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Sun and haze.
+            Circle()
+                .fill(dark
+                      ? Color(red: 0.95, green: 0.74, blue: 0.42).opacity(0.55)
+                      : Color(red: 1.0, green: 0.82, blue: 0.48).opacity(0.85))
+                .frame(width: 46, height: 46)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.top, 14)
+                .padding(.trailing, 22)
+
+            // Far hills, then the field in two bands of green.
+            Ellipse()
+                .fill(dark ? Color(red: 0.20, green: 0.35, blue: 0.28) : Color(red: 0.78, green: 0.87, blue: 0.78))
+                .frame(width: 420, height: 130)
+                .offset(x: -70, y: 54)
+            Ellipse()
+                .fill(dark ? Color(red: 0.16, green: 0.30, blue: 0.23) : Color(red: 0.68, green: 0.81, blue: 0.66))
+                .frame(width: 380, height: 104)
+                .offset(x: 120, y: 60)
+            Ellipse()
+                .fill(dark ? Color(red: 0.12, green: 0.26, blue: 0.20) : Color(red: 0.52, green: 0.70, blue: 0.48))
+                .frame(width: 460, height: 92)
+                .offset(x: -20, y: 74)
+
+            // A row of village roofs on the horizon.
+            HStack(alignment: .bottom, spacing: 6) {
+                house(width: 20, height: 15)
+                house(width: 26, height: 19)
+                house(width: 16, height: 13)
+            }
+            .offset(x: 128, y: -52)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .accessibilityHidden(true)
+    }
+
+    private func house(width: CGFloat, height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Roof()
+                .fill(Color(red: 0.76, green: 0.42, blue: 0.27))
+                .frame(width: width + 6, height: height * 0.45)
+            Rectangle()
+                .fill(dark ? Color(red: 0.80, green: 0.78, blue: 0.68) : Color(red: 0.99, green: 0.96, blue: 0.88))
+                .frame(width: width, height: height * 0.55)
+        }
+    }
+}
+
+private struct Roof: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        }
+    }
+}
+
 private struct WidgetBackdrop: View {
     @Environment(\.widgetFamily) private var family
 
+    /// A photo the user chose for this size, otherwise the downloaded market
+    /// photo. Both are optional: the drawn landscape is always underneath.
     private var marketPhoto: UIImage? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
@@ -113,47 +197,32 @@ private struct WidgetBackdrop: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                if let marketPhoto {
-                    if #available(iOSApplicationExtension 18.0, *) {
-                        Image(uiImage: marketPhoto)
-                            .resizable()
-                            // Apply the image-specific rendering mode before the chain
-                            // becomes a generic SwiftUI View.
-                            .widgetAccentedRenderingMode(.fullColor)
-                            .scaledToFill()
-                            .frame(width: proxy.size.width, height: proxy.size.height)
-                            .clipped()
-                    } else {
-                        Image(uiImage: marketPhoto)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: proxy.size.width, height: proxy.size.height)
-                            .clipped()
-                    }
-                } else {
-                    LinearGradient(
-                        colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                }
-                // A restrained dark wash keeps white text legible while preserving the real vendor photograph.
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.42),
-                        Color.black.opacity(0.18),
-                        Color.black.opacity(0.52)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+        ZStack {
+            WidgetLandscape()
+
+            if let marketPhoto {
+                Image(uiImage: marketPhoto)
+                    .resizable()
+                    .scaledToFill()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        // A restrained dark wash keeps the light text legible over either layer.
+        .overlay {
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.42),
+                    Color.black.opacity(0.18),
+                    Color.black.opacity(0.52)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
     }
 }
+
 
 private struct GanJiWidgetView: View {
     let entry: GanJiWidgetEntry
@@ -408,23 +477,14 @@ private struct GanJiWidgetView: View {
 }
 
 private extension View {
-    @ViewBuilder
+    /// Draws the backdrop inside the widget's own content instead of handing it
+    /// to WidgetKit as a container background. On iOS 26 the system composites a
+    /// container background behind its own plate, where it can end up hidden;
+    /// a normal background travels with the content, so it is always drawn.
     func ganjiWidgetBackground() -> some View {
-        if #available(iOSApplicationExtension 17.0, *) {
-            // The backdrop must fill the widget it is given, not collapse to its
-            // ideal size: from iOS 26 WidgetKit hands the container background a
-            // size that already has the system card's insets taken out, so a
-            // GeometryReader-backed canvas that is not stretched can leave the
-            // system plate showing instead of the photograph.
-            self.containerBackground(for: .widget) {
-                WidgetBackdrop()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        } else {
-            self.background {
-                WidgetBackdrop()
-                    .ignoresSafeArea()
-            }
+        background {
+            WidgetBackdrop()
+                .ignoresSafeArea()
         }
     }
 }
@@ -434,7 +494,7 @@ struct GanJiWidget: Widget {
     let kind = "GanJiWidget"
 
     var body: some WidgetConfiguration {
-        let configuration = StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
+        StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
             GanJiWidgetView(entry: entry)
                 // WidgetKit redacts gallery placeholders by default, which turns the
                 // small/medium previews into gray skeletons. Keep our designed preview visible.
@@ -447,13 +507,5 @@ struct GanJiWidget: Widget {
         .configurationDisplayName("赶集日记")
         .description("查看今天、明天、后天的赶集安排")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
-
-        // This widget's photograph is essential content, not a decorative background.
-        // Keep it visible in iOS 17+ contexts that otherwise remove widget backgrounds.
-        if #available(iOSApplicationExtension 17.0, *) {
-            return configuration.containerBackgroundRemovable(false)
-        } else {
-            return configuration
-        }
     }
 }
