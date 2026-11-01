@@ -411,9 +411,14 @@ private extension View {
     @ViewBuilder
     func ganjiWidgetBackground() -> some View {
         if #available(iOSApplicationExtension 17.0, *) {
+            // The backdrop must fill the widget it is given, not collapse to its
+            // ideal size: from iOS 26 WidgetKit hands the container background a
+            // size that already has the system card's insets taken out, so a
+            // GeometryReader-backed canvas that is not stretched can leave the
+            // system plate showing instead of the photograph.
             self.containerBackground(for: .widget) {
                 WidgetBackdrop()
-                    .ignoresSafeArea()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         } else {
             self.background {
@@ -436,6 +441,9 @@ struct GanJiWidget: Widget {
                 .unredacted()
                 .ganjiWidgetBackground()
         }
+        // The layouts pad their own content, so the default .widget content margins
+        // would only inset the photograph and the text twice.
+        .contentMarginsDisabled()
         .configurationDisplayName("赶集日记")
         .description("查看今天、明天、后天的赶集安排")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
