@@ -119,35 +119,37 @@ private struct WidgetBackdrop: View {
     let diagnostic: String
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                if let photo {
-                    Image(uiImage: photo)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
-                } else {
-                    LinearGradient(
-                        colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                }
-                // A restrained dark wash keeps the light text legible.
+        ZStack {
+            if let photo {
+                // No GeometryReader here: on iOS 26 the small family gets a
+                // glass inset whose proxy size can read as zero, which frames the
+                // photo to nothing. Fill the parent instead so the image always
+                // has a real size.
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
                 LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.42),
-                        Color.black.opacity(0.18),
-                        Color.black.opacity(0.52)
-                    ],
+                    colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
+            // A restrained dark wash keeps the light text legible.
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.42),
+                    Color.black.opacity(0.18),
+                    Color.black.opacity(0.52)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
 }
 
