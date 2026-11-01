@@ -16,6 +16,8 @@ private struct GanJiWidgetEntry: TimelineEntry {
     let dayAfter: [Market]
     /// Loaded by the provider so the view body only ever draws a value.
     var photo: UIImage? = nil
+    /// Temporary on-screen diagnostic while the photo does not appear.
+    var diagnostic: String = ""
 }
 
 private struct GanJiWidgetProvider: TimelineProvider {
@@ -81,13 +83,15 @@ private struct GanJiWidgetProvider: TimelineProvider {
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
         let dayAfter = Calendar.current.date(byAdding: .day, value: 2, to: today) ?? today
 
+        let photoResult = WidgetPhotoStore.load(for: context.family)
         return GanJiWidgetEntry(
             date: Date(),
             areaName: areaName.isEmpty ? "赶集日记" : areaName,
             today: markets.filter { MarketStore.opens(on: today, market: $0) },
             tomorrow: markets.filter { MarketStore.opens(on: tomorrow, market: $0) },
             dayAfter: markets.filter { MarketStore.opens(on: dayAfter, market: $0) },
-            photo: WidgetPhotoStore.photo(for: context.family)
+            photo: photoResult.photo,
+            diagnostic: "OS\(ProcessInfo.processInfo.operatingSystemVersion.majorVersion) \(photoResult.status)"
         )
     }
 }
@@ -111,6 +115,8 @@ private struct WidgetBackdrop: View {
     /// Resolved by the timeline, which runs outside the view body, so the view
     /// only ever draws a value that SwiftUI can compare between renders.
     let photo: UIImage?
+    /// Temporary on-screen diagnostic while the photo does not appear on iOS 26.
+    let diagnostic: String
 
     var body: some View {
         GeometryReader { proxy in
@@ -151,6 +157,15 @@ private struct WidgetBackdrop: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
+            .overlay(alignment: .bottom) {
+                Text(diagnostic)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.red, in: RoundedRectangle(cornerRadius: 4))
+                    .padding(4)
+            }
         }
     }
 }
@@ -165,12 +180,18 @@ private extension UIImage {
 
 /// Loads the photo for one widget family from the App Group container.
 enum WidgetPhotoStore {
-    static func photo(for family: WidgetFamily) -> UIImage? {
+    /// The photo and a short status the widget can display on screen.
+    struct Result {
+        let photo: UIImage?
+        let status: String
+    }
+
+    static func load(for family: WidgetFamily) -> Result {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
         ) else {
             ganJiLog.error("no App Group container for \(ganJiGroupID, privacy: .public)")
-            return nil
+            return Result(photo: nil, status: "无容器")
         }
 
         let customFileName: String
@@ -180,16 +201,18 @@ enum WidgetPhotoStore {
         default: customFileName = "GanJiWidgetPhoto-large.jpg"
         }
 
-        let names = [customFileName, "GanJiWidgetMarket.jpg"]
-        for name in names {
+        var notes: [String] = []
+        for name in [customFileName, "GanJiWidgetMarket.jpg"] {
             let url = container.appendingPathComponent(name)
             let exists = FileManager.default.fileExists(atPath: url.path)
+            let bytes = (try? Data(contentsOf: url))?.count ?? 0
             let image = image(in: container, named: name)
-            ganJiLog.notice("photo \(name, privacy: .public) exists=\(exists, privacy: .public) decoded=\(image != nil, privacy: .public) in \(container.path, privacy: .public)")
-            if let image { return image }
+            let tag = name == customFileName ? "自选" : "下载"
+            notes.append("\(tag)\(exists ? "有" : "无")\(bytes > 0 ? "\(bytes / 1024)K" : "")\(image != nil ? "✓" : "✗")")
+            ganJiLog.notice("photo \(name, privacy: .public) exists=\(exists, privacy: .public) bytes=\(bytes, privacy: .public) decoded=\(image != nil, privacy: .public)")
+            if let image { return Result(photo: image, status: notes.joined(separator: " ")) }
         }
-        ganJiLog.error("no photo found for family, container contents=\(((try? FileManager.default.contentsOfDirectory(atPath: container.path)) ?? []).joined(separator: ","), privacy: .public)")
-        return nil
+        return Result(photo: nil, status: notes.joined(separator: " "))
     }
 
     private static func image(in container: URL, named name: String) -> UIImage? {
@@ -459,7 +482,7 @@ struct GanJiWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
-            WidgetBackdrop(photo: entry.photo)
+            WidgetBackdrop(photo: entry.photo, diagnostic: entry.diagnostic)
                 .overlay {
                     GanJiWidgetView(entry: entry)
                         // WidgetKit redacts gallery placeholders by default, which turns
