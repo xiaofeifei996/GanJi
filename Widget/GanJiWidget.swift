@@ -3,6 +3,7 @@ import WidgetKit
 import UIKit
 
 private let ganJiGroupID = "group.com.ganji.diary"
+private let ganJiWidgetKind = "GanJiWidget"
 
 private struct GanJiWidgetEntry: TimelineEntry {
     let date: Date
@@ -24,35 +25,43 @@ private struct GanJiWidgetProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiWidgetEntry>) -> Void) {
-        refreshWidgetPhoto {
-            let entry = makeEntry()
-            let nextRefresh = Calendar.current.nextDate(
-                after: Date(),
-                matching: DateComponents(hour: 0, minute: 5),
-                matchingPolicy: .nextTime
-            ) ?? Date().addingTimeInterval(3600)
-            completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
-        }
+        // Answer immediately, then fetch the photo in the background and reload.
+        refreshWidgetPhoto()
+        let entry = makeEntry()
+        let nextRefresh = Calendar.current.nextDate(
+            after: Date(),
+            matching: DateComponents(hour: 0, minute: 5),
+            matchingPolicy: .nextTime
+        ) ?? Date().addingTimeInterval(3600)
+        completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
     }
 
     /// Download a real market-produce photograph into the shared App Group container.
     /// The widget uses the last cached image when the network is unavailable.
-    private func refreshWidgetPhoto(completion: @escaping () -> Void) {
+    ///
+    /// The download finishes independently of the timeline: the entry is handed to
+    /// WidgetKit at once, and the photo is asked for again with
+    /// WidgetCenter.reloadTimelines when the file has been written. Waiting for the
+    /// request before answering a timeline can make WidgetKit drop the entry and
+    /// leave the widget without its photo.
+    private func refreshWidgetPhoto() {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
-        ) else {
-            completion()
-            return
-        }
+        ) else { return }
+
         let destination = container.appendingPathComponent("GanJiWidgetMarket.jpg")
         let url = URL(string: "https://images.unsplash.com/photo-1586480185285-9e602c969a95?auto=format&fit=crop&w=1400&q=88")!
         URLSession.shared.dataTask(with: url) { data, response, error in
-            defer { completion() }
             guard error == nil,
                   let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode),
                   let data, UIImage(data: data) != nil else { return }
-            try? data.write(to: destination, options: .atomic)
+            do {
+                try data.write(to: destination, options: .atomic)
+            } catch {
+                return
+            }
+            WidgetCenter.shared.reloadTimelines(ofKind: ganJiWidgetKind)
         }.resume()
     }
 
@@ -89,12 +98,20 @@ private enum WidgetPalette {
     static let line = Color(red: 0.98, green: 0.91, blue: 0.79).opacity(0.62)
 }
 
-/// The backdrop is the photo the user picked for this widget size, else the
-/// downloaded market photo, else a plain gradient so the widget is never empty.
+/// The backdrop is the real photograph: the one the user picked for this widget
+/// size, else the downloaded market photo. A file that cannot be decoded counts
+/// as missing. Only when no photo exists at all does a gradient stand in.
 /// It is drawn on the widget's own content (see ganjiWidgetBackground()) so it
 /// cannot be composited away behind the system plate.
 private struct WidgetBackdrop: View {
     @Environment(\.widgetFamily) private var family
+
+    private func image(in container: URL, named name: String) -> UIImage? {
+        let url = container.appendingPathComponent(name)
+        guard let data = try? Data(contentsOf: url), !data.isEmpty,
+              let image = UIImage(data: data), image.size.width > 0 else { return nil }
+        return image
+    }
 
     private var marketPhoto: UIImage? {
         guard let container = FileManager.default.containerURL(
@@ -109,11 +126,10 @@ private struct WidgetBackdrop: View {
         }
 
         // A size-specific photo takes priority; otherwise keep the shared market photo.
-        let customURL = container.appendingPathComponent(customFileName)
-        if let customImage = UIImage(contentsOfFile: customURL.path) {
+        if let customImage = image(in: container, named: customFileName) {
             return customImage
         }
-        return UIImage(contentsOfFile: container.appendingPathComponent("GanJiWidgetMarket.jpg").path)
+        return image(in: container, named: "GanJiWidgetMarket.jpg")
     }
 
     var body: some View {
@@ -417,7 +433,7 @@ private extension View {
 
 @main
 struct GanJiWidget: Widget {
-    let kind = "GanJiWidget"
+    let kind = ganJiWidgetKind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
