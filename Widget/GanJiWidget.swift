@@ -104,41 +104,59 @@ private enum WidgetPalette {
 /// The backdrop is the real photograph: the one the user picked for this widget
 /// size, else the downloaded market photo. A file that cannot be decoded counts
 /// as missing. Only when no photo exists at all does a gradient stand in.
-/// It is drawn as the widget base layer so it
-/// cannot be composited away behind the system plate.
 private struct WidgetBackdrop: View {
-    /// Resolved by the timeline, which runs outside the view body: reading files
-    /// or decoding images inside body made SwiftUI compare the backdrop as equal
-    /// between renders and never draw the photo.
+    /// Resolved by the timeline, which runs outside the view body, so the view
+    /// only ever draws a value that SwiftUI can compare between renders.
     let photo: UIImage?
 
     var body: some View {
-        ZStack {
-            if let photo {
-                Image(uiImage: photo)
-                    .resizable()
-                    .scaledToFill()
-            } else {
+        GeometryReader { proxy in
+            ZStack {
+                if let photo {
+                    // Drawn with Canvas instead of Image(uiImage:): a Canvas draws
+                    // the bitmap itself, which keeps the photo visible on iOS 26
+                    // where an image view inside a widget can end up composited
+                    // away behind the system plate. scaledToFill is done by hand.
+                    Canvas { context, size in
+                        guard let cg = photo.cgImage ?? photo.cgImageFromCIImage,
+                              cg.width > 0, cg.height > 0, size.width > 0, size.height > 0 else { return }
+                        let image = Image(decorative: cg, scale: 1, orientation: .up)
+                        let scale = max(size.width / CGFloat(cg.width), size.height / CGFloat(cg.height))
+                        let drawSize = CGSize(width: CGFloat(cg.width) * scale, height: CGFloat(cg.height) * scale)
+                        let origin = CGPoint(x: (size.width - drawSize.width) / 2,
+                                             y: (size.height - drawSize.height) / 2)
+                        context.draw(image, in: CGRect(origin: origin, size: drawSize))
+                    }
+                    .accessibilityHidden(true)
+                } else {
+                    LinearGradient(
+                        colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                // A restrained dark wash keeps the light text legible.
                 LinearGradient(
-                    colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
+                    colors: [
+                        Color.black.opacity(0.42),
+                        Color.black.opacity(0.18),
+                        Color.black.opacity(0.52)
+                    ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             }
-            // A restrained dark wash keeps the light text legible.
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.42),
-                    Color.black.opacity(0.18),
-                    Color.black.opacity(0.52)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
         }
-        .aspectRatio(contentMode: .fill)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
+    }
+}
+
+private extension UIImage {
+    /// Fallback for images that are backed by a CIImage (e.g. HEIC from PHPicker).
+    var cgImageFromCIImage: CGImage? {
+        guard let ci = ciImage else { return nil }
+        return CIContext().createCGImage(ci, from: ci.extent)
     }
 }
 
