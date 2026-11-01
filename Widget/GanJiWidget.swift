@@ -11,6 +11,8 @@ private struct GanJiWidgetEntry: TimelineEntry {
     let today: [Market]
     let tomorrow: [Market]
     let dayAfter: [Market]
+    /// Loaded by the provider so the view body only ever draws a value.
+    var photo: UIImage? = nil
 }
 
 private struct GanJiWidgetProvider: TimelineProvider {
@@ -21,13 +23,13 @@ private struct GanJiWidgetProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (GanJiWidgetEntry) -> Void) {
         // Widget gallery previews must be returned immediately. Waiting for a network
         // image download can make iOS show its generic gray placeholder for small/medium.
-        completion(makeEntry())
+        completion(makeEntry(in: context))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiWidgetEntry>) -> Void) {
         // Answer immediately, then fetch the photo in the background and reload.
         refreshWidgetPhoto()
-        let entry = makeEntry()
+        let entry = makeEntry(in: context)
         let nextRefresh = Calendar.current.nextDate(
             after: Date(),
             matching: DateComponents(hour: 0, minute: 5),
@@ -65,7 +67,7 @@ private struct GanJiWidgetProvider: TimelineProvider {
         }.resume()
     }
 
-    private func makeEntry() -> GanJiWidgetEntry {
+    private func makeEntry(in context: Context) -> GanJiWidgetEntry {
         let shared = UserDefaults(suiteName: ganJiGroupID)
         let areaName = shared?.string(forKey: "GanJiSelectedAreaName") ?? ""
         let favoriteIDs = Set(shared?.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
@@ -81,7 +83,8 @@ private struct GanJiWidgetProvider: TimelineProvider {
             areaName: areaName.isEmpty ? "赶集日记" : areaName,
             today: markets.filter { MarketStore.opens(on: today, market: $0) },
             tomorrow: markets.filter { MarketStore.opens(on: tomorrow, market: $0) },
-            dayAfter: markets.filter { MarketStore.opens(on: dayAfter, market: $0) }
+            dayAfter: markets.filter { MarketStore.opens(on: dayAfter, market: $0) },
+            photo: WidgetPhotoStore.photo(for: context.family)
         )
     }
 }
@@ -101,19 +104,47 @@ private enum WidgetPalette {
 /// The backdrop is the real photograph: the one the user picked for this widget
 /// size, else the downloaded market photo. A file that cannot be decoded counts
 /// as missing. Only when no photo exists at all does a gradient stand in.
-/// It is drawn on the widget's own content (see ganjiWidgetBackground()) so it
+/// It is drawn as the widget base layer so it
 /// cannot be composited away behind the system plate.
 private struct WidgetBackdrop: View {
-    @Environment(\.widgetFamily) private var family
+    /// Resolved by the timeline, which runs outside the view body: reading files
+    /// or decoding images inside body made SwiftUI compare the backdrop as equal
+    /// between renders and never draw the photo.
+    let photo: UIImage?
 
-    private func image(in container: URL, named name: String) -> UIImage? {
-        let url = container.appendingPathComponent(name)
-        guard let data = try? Data(contentsOf: url), !data.isEmpty,
-              let image = UIImage(data: data), image.size.width > 0 else { return nil }
-        return image
+    var body: some View {
+        ZStack {
+            if let photo {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                LinearGradient(
+                    colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+            // A restrained dark wash keeps the light text legible.
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.42),
+                    Color.black.opacity(0.18),
+                    Color.black.opacity(0.52)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        .aspectRatio(contentMode: .fill)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
     }
+}
 
-    private var marketPhoto: UIImage? {
+/// Loads the photo for one widget family from the App Group container.
+enum WidgetPhotoStore {
+    static func photo(for family: WidgetFamily) -> UIImage? {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: ganJiGroupID
         ) else { return nil }
@@ -126,42 +157,15 @@ private struct WidgetBackdrop: View {
         }
 
         // A size-specific photo takes priority; otherwise keep the shared market photo.
-        if let customImage = image(in: container, named: customFileName) {
-            return customImage
-        }
+        if let image = image(in: container, named: customFileName) { return image }
         return image(in: container, named: "GanJiWidgetMarket.jpg")
     }
 
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                if let marketPhoto {
-                    Image(uiImage: marketPhoto)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .clipped()
-                } else {
-                    LinearGradient(
-                        colors: [WidgetPalette.paper, Color(red: 0.82, green: 0.89, blue: 0.77)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                }
-                // A restrained dark wash keeps the light text legible.
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.42),
-                        Color.black.opacity(0.18),
-                        Color.black.opacity(0.52)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .clipped()
+    private static func image(in container: URL, named name: String) -> UIImage? {
+        let url = container.appendingPathComponent(name)
+        guard let data = try? Data(contentsOf: url), !data.isEmpty,
+              let image = UIImage(data: data), image.size.width > 0 else { return nil }
+        return image
     }
 }
 
@@ -418,26 +422,13 @@ private struct GanJiWidgetView: View {
     }
 }
 
-private extension View {
-    /// Kept for the Lock Screen and the gallery, where a plain background is all
-    /// that is needed; the Home Screen photo is drawn as the widget's base layer
-    /// in GanJiWidget's configuration body.
-    func ganjiWidgetBackground() -> some View {
-        background {
-            WidgetBackdrop()
-                .ignoresSafeArea()
-        }
-    }
-
-}
-
 @main
 struct GanJiWidget: Widget {
     let kind = ganJiWidgetKind
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: GanJiWidgetProvider()) { entry in
-            WidgetBackdrop()
+            WidgetBackdrop(photo: entry.photo)
                 .overlay {
                     GanJiWidgetView(entry: entry)
                         // WidgetKit redacts gallery placeholders by default, which turns
