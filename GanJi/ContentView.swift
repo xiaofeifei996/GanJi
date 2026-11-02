@@ -46,8 +46,8 @@ struct ContentView: View {
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
     @State private var activeRootSheet: RootSheet?
-    @State private var pendingWidgetPhotoSlot: WidgetPhotoSlot?
-    @State private var activeWidgetPhotoPickerSlot: WidgetPhotoSlot?
+    @State private var pendingBackdropKind: PhotoSlot.Kind?
+    @State private var activeBackdropKind: PhotoSlot.Kind?
     @State private var homeRegionExpanded = false
     @State private var selectedPickerProvinceCode: Int = 450000
     @State private var selectedPickerCityCode: Int = 450800
@@ -249,8 +249,8 @@ struct ContentView: View {
                 }
             }
             .sheet(item: $activeRootSheet, onDismiss: {
-                activeWidgetPhotoPickerSlot = pendingWidgetPhotoSlot
-                pendingWidgetPhotoSlot = nil
+                activeBackdropKind = pendingBackdropKind
+                pendingBackdropKind = nil
             }) { sheet in
                 switch sheet {
             case .date:
@@ -273,8 +273,8 @@ struct ContentView: View {
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { activeRootSheet = nil } } }
                 }
             case .widgetPhoto:
-                WidgetPhotoSettingsView(onPick: { slot in
-                    pendingWidgetPhotoSlot = slot
+                BackdropPickerSheet(onPick: { kind in
+                    pendingBackdropKind = kind
                     activeRootSheet = nil
                 })
             case .region:
@@ -382,7 +382,7 @@ struct ContentView: View {
             }
             }
         .background(
-            WidgetPhotoPickerHost(requestedSlot: $activeWidgetPhotoPickerSlot) {
+            PhotoPickerHost(active: $activeBackdropKind) {
                 WidgetCenter.shared.reloadAllTimelines()
             }
             .frame(width: 0, height: 0)

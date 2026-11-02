@@ -3,287 +3,176 @@ import PhotosUI
 import WidgetKit
 import UIKit
 
-private let widgetPhotoGroupID = "group.com.ganji.diary"
+// 全新实现：App 内的相册选择，写真实照片到 App Group。
+private let photoGroupID = "group.com.ganji.diary"
 
-enum WidgetPhotoSlot: String, CaseIterable, Identifiable {
-    case small, medium, large
-
-    var id: String { rawValue }
+struct PhotoSlot: Identifiable {
+    enum Kind: String, CaseIterable { case small, medium, large }
+    let kind: Kind
+    var id: String { kind.rawValue }
     var title: String {
-        switch self {
-        case .small: return "小号小组件"
-        case .medium: return "中号小组件"
-        case .large: return "大号小组件"
+        switch kind {
+        case .small: return "小号"
+        case .medium: return "中号"
+        case .large: return "大号"
         }
     }
-    var detail: String {
-        switch self {
-        case .small: return "突出日期和今日集市"
-        case .medium: return "横向照片与三日安排"
-        case .large: return "完整照片和行程"
-        }
-    }
-    var fileName: String { "GanJiWidgetPhoto-\(rawValue).jpg" }
-
-    var image: UIImage? {
-        guard let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID) else { return nil }
-        let url = directory.appendingPathComponent(fileName)
-        return UIImage(contentsOfFile: url.path)
-    }
-
-    func removeImage() {
-        guard let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID) else { return }
-        let url = directory.appendingPathComponent(fileName)
-        try? FileManager.default.removeItem(at: url)
-    }
+    var fileName: String { "GanJiWidgetPhoto-\(kind.rawValue).jpg" }
 }
 
-struct WidgetPhotoSettingsView: View {
+struct BackdropPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
-    let onPick: (WidgetPhotoSlot) -> Void
-    @State private var refreshToken = 0
+    var onPick: (PhotoSlot.Kind) -> Void
 
     var body: some View {
         NavigationView {
-            settingsList
-                .background(Color(uiColor: .systemGroupedBackground))
-                .navigationTitle("小组件背景")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("完成") { dismiss() }
+            ScrollView {
+                VStack(spacing: 12) {
+                    Text("为三种尺寸各选一张真实照片作为小组件背景。")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                    ForEach(PhotoSlot.Kind.allCases, id: \.self) { kind in
+                        BackdropSlotCard(kind: kind, onPick: { onPick(kind) })
                     }
+                    Text("照片仅保存在本机 App Group 共享空间，不会上传。")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
                 }
-        }
-    }
-
-    private var settingsList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                introText
-                smallCard
-                mediumCard
-                largeCard
-                privacyNote
+                .padding(16)
             }
-            .padding(16)
-        }
-    }
-
-    private var introText: some View {
-        Text("为每种尺寸选择不同的照片。更换后会自动刷新桌面小组件。")
-            .font(.system(size: 14))
-            .foregroundColor(.secondary)
-    }
-
-    private var smallCard: some View {
-        WidgetPhotoSlotCard(slot: .small, refreshToken: refreshToken, onPick: { onPick(.small) }, onReset: reset(.small))
-    }
-
-    private var mediumCard: some View {
-        WidgetPhotoSlotCard(slot: .medium, refreshToken: refreshToken, onPick: { onPick(.medium) }, onReset: reset(.medium))
-    }
-
-    private var largeCard: some View {
-        WidgetPhotoSlotCard(slot: .large, refreshToken: refreshToken, onPick: { onPick(.large) }, onReset: reset(.large))
-    }
-
-    private var privacyNote: some View {
-        Text("照片只保存在本机 App Group 共享空间，不会上传到服务器。")
-            .font(.system(size: 12))
-            .foregroundColor(.secondary)
-            .padding(.horizontal, 4)
-    }
-
-    private func reset(_ slot: WidgetPhotoSlot) -> () -> Void {
-        return {
-            slot.removeImage()
-            refreshToken += 1
-            WidgetCenter.shared.reloadAllTimelines()
+            .navigationTitle("小组件背景")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } }
+            }
         }
     }
 }
 
-private struct WidgetPhotoSlotCard: View {
-    let slot: WidgetPhotoSlot
-    let refreshToken: Int
+private struct BackdropSlotCard: View {
+    let kind: PhotoSlot.Kind
     let onPick: () -> Void
-    let onReset: () -> Void
+
+    private var image: UIImage? {
+        guard let dir = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: photoGroupID) else { return nil }
+        return UIImage(contentsOfFile: dir.appendingPathComponent("GanJiWidgetPhoto-\(kind.rawValue).jpg").path)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            titleRow
-            photoPreview
-            actionRow
-        }
-        .padding(14)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
-        .id(refreshToken)
-    }
-
-    private var titleRow: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(slot.title).font(.system(size: 17, weight: .bold))
-            Spacer()
-            Text(slot.detail).font(.system(size: 11)).foregroundColor(.secondary)
-        }
-    }
-
-    @ViewBuilder
-    private var photoPreview: some View {
-        if let image = slot.image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 132)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-        } else {
-            placeholder
-        }
-    }
-
-    private var placeholder: some View {
-        VStack(spacing: 7) {
-            Image(systemName: "photo").font(.system(size: 28))
-            Text("使用默认集市照片").font(.system(size: 12, weight: .medium))
-        }
-        .foregroundColor(.secondary)
-        .frame(maxWidth: .infinity)
-        .frame(height: 132)
-        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var actionRow: some View {
-        HStack(spacing: 10) {
+            HStack {
+                Text(kind == .small ? "小号小组件" : kind == .medium ? "中号小组件" : "大号小组件")
+                    .font(.system(size: 17, weight: .bold))
+                Spacer()
+            }
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+                    .frame(maxWidth: .infinity).frame(height: 120).clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            } else {
+                Label("尚未选择照片", systemImage: "photo")
+                    .frame(maxWidth: .infinity).frame(height: 120)
+                    .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+            }
             Button(action: onPick) {
-                Label(slot.image == nil ? "从相册选择" : "更换照片", systemImage: "photo.on.rectangle")
+                Label(image == nil ? "从相册选择" : "更换照片", systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
+                    .padding(.vertical, 10)
                     .background(Color(red: 0.16, green: 0.43, blue: 0.94), in: RoundedRectangle(cornerRadius: 12))
                     .foregroundColor(.white)
             }
-            Button(action: onReset) {
-                Label("恢复默认", systemImage: "arrow.counterclockwise")
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 11)
-                    .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundColor(.primary)
-            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding(14)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
-/// A persistent UIKit presenter hosted by the app root. PHPicker is presented and
-/// dismissed by UIKit itself, so repeated selections do not depend on SwiftUI
-/// sheet/full-screen-cover state transitions.
-struct WidgetPhotoPickerHost: UIViewControllerRepresentable {
-    @Binding var requestedSlot: WidgetPhotoSlot?
-    let onFinished: () -> Void
+/// 在 App 根上常驻的 UIKit 相册宿主，避免 SwiftUI sheet 嵌套导致的选择器失效。
+struct PhotoPickerHost: UIViewControllerRepresentable {
+    @Binding var active: PhotoSlot.Kind?
+    var done: () -> Void
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(requestedSlot: $requestedSlot, onFinished: onFinished)
-    }
+    func makeCoordinator() -> Coordinator { Coordinator(active: $active, done: done) }
 
-    func makeUIViewController(context: Context) -> HostViewController {
-        let controller = HostViewController()
-        controller.onDidAppear = { [weak coordinator = context.coordinator] host in
-            coordinator?.presentIfPossible(from: host)
+    func makeUIViewController(context: Context) -> Host {
+        let host = Host()
+        host.onAppear = { [weak coordinator = context.coordinator] h in
+            coordinator?.present(from: h)
         }
-        return controller
+        return host
     }
 
-    func updateUIViewController(_ controller: HostViewController, context: Context) {
-        context.coordinator.requestedSlot = $requestedSlot
-        context.coordinator.onFinished = onFinished
+    func updateUIViewController(_ controller: Host, context: Context) {
+        context.coordinator.active = $active
+        context.coordinator.done = done
         context.coordinator.host = controller
-        context.coordinator.presentIfPossible(from: controller)
+        context.coordinator.present(from: controller)
     }
 
-    final class HostViewController: UIViewController {
-        var onDidAppear: ((UIViewController) -> Void)?
-        override func viewDidAppear(_ animated: Bool) {
-            super.viewDidAppear(animated)
-            onDidAppear?(self)
-        }
+    final class Host: UIViewController {
+        var onAppear: ((UIViewController) -> Void)?
+        override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); onAppear?(self) }
     }
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        var requestedSlot: Binding<WidgetPhotoSlot?>
-        var onFinished: () -> Void
+        var active: Binding<PhotoSlot.Kind?>
+        var done: () -> Void
         weak var host: UIViewController?
-        private var isPresenting = false
-        private var activePicker: PHPickerViewController?
+        private var presenting = false
+        private var picker: PHPickerViewController?
+        private var current: PhotoSlot.Kind?
 
-        init(requestedSlot: Binding<WidgetPhotoSlot?>, onFinished: @escaping () -> Void) {
-            self.requestedSlot = requestedSlot
-            self.onFinished = onFinished
+        init(active: Binding<PhotoSlot.Kind?>, done: @escaping () -> Void) {
+            self.active = active
+            self.done = done
         }
 
-        func presentIfPossible(from host: UIViewController) {
-            guard !isPresenting, let slot = requestedSlot.wrappedValue,
+        func present(from host: UIViewController) {
+            guard !presenting, let kind = active.wrappedValue,
                   let window = host.viewIfLoaded?.window,
                   let root = window.rootViewController else { return }
+            var top = root
+            while let next = top.presentedViewController { top = next }
+            guard !(top is PHPickerViewController), top.viewIfLoaded?.window != nil else { return }
 
-            var presenter = root
-            while let presented = presenter.presentedViewController {
-                presenter = presented
-            }
-            guard !(presenter is PHPickerViewController),
-                  presenter.viewIfLoaded?.window != nil else { return }
-
-            isPresenting = true
-            currentSlot = slot
-            var configuration = PHPickerConfiguration(photoLibrary: .shared())
-            configuration.filter = .images
-            configuration.selectionLimit = 1
-            let picker = PHPickerViewController(configuration: configuration)
-            picker.delegate = self
-            activePicker = picker
-            requestedSlot.wrappedValue = nil
-            presenter.present(picker, animated: true)
+            presenting = true
+            current = kind
+            var config = PHPickerConfiguration(photoLibrary: .shared())
+            config.filter = .images
+            config.selectionLimit = 1
+            let controller = PHPickerViewController(configuration: config)
+            controller.delegate = self
+            picker = controller
+            active.wrappedValue = nil
+            top.present(controller, animated: true)
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             guard let provider = results.first?.itemProvider,
                   provider.canLoadObject(ofClass: UIImage.self) else {
-                finish(picker)
-                return
+                finish(picker); return
             }
-
             provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
                 guard let self else { return }
-                let image = object as? UIImage
-                let data = image?.jpegData(compressionQuality: 0.88)
-                if let data,
-                   let slot = self.currentSlot,
-                   let directory = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: widgetPhotoGroupID) {
-                    let destination = directory.appendingPathComponent(slot.fileName)
-                    try? data.write(to: destination, options: .atomic)
+                let data = (object as? UIImage)?.jpegData(compressionQuality: 0.88)
+                if let data, let kind = self.current,
+                   let dir = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: photoGroupID) {
+                    try? data.write(to: dir.appendingPathComponent("GanJiWidgetPhoto-\(kind.rawValue).jpg"), options: .atomic)
                 }
-                DispatchQueue.main.async {
-                    self.finish(picker)
-                }
+                DispatchQueue.main.async { self.finish(picker) }
             }
         }
-
-        private var currentSlot: WidgetPhotoSlot?
 
         private func finish(_ picker: PHPickerViewController) {
             picker.dismiss(animated: true) { [weak self] in
                 guard let self else { return }
-                self.activePicker = nil
-                self.isPresenting = false
-                self.currentSlot = nil
+                self.picker = nil
+                self.presenting = false
+                self.current = nil
                 WidgetCenter.shared.reloadAllTimelines()
-                self.onFinished()
-                if let host = self.host {
-                    DispatchQueue.main.async {
-                        self.presentIfPossible(from: host)
-                    }
-                }
+                self.done()
+                if let host = self.host { DispatchQueue.main.async { self.present(from: host) } }
             }
         }
     }
