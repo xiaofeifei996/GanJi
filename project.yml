@@ -57,5 +57,7 @@ targets:
       path: Widget/Info.plist
       properties:
         CFBundleDisplayName: 赶集日记小组件
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
