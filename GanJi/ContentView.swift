@@ -2,7 +2,6 @@ import SwiftUI
 import UIKit
 import MapKit
 import CoreLocation
-import WidgetKit
 
 private enum MarketFilter: String, CaseIterable, Identifiable {
     case all = "全部", today = "今天", tomorrow = "明天", dayAfter = "后天"
@@ -46,8 +45,6 @@ struct ContentView: View {
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
     @State private var activeRootSheet: RootSheet?
-    @State private var pendingWidgetPhotoSlot: WidgetPhotoSlot?
-    @State private var activeWidgetPhotoPickerSlot: WidgetPhotoSlot?
     @State private var homeRegionExpanded = false
     @State private var selectedPickerProvinceCode: Int = 450000
     @State private var selectedPickerCityCode: Int = 450800
@@ -215,7 +212,6 @@ struct ContentView: View {
                 }
             }
             .onAppear {
-                syncWidgetHomeData()
                 locator.start()
                 Task { await refreshMarkets(for: selectedAreaCode) }
                 if let first = allMarkets.first {
@@ -248,10 +244,7 @@ struct ContentView: View {
                     region.span = MKCoordinateSpan(latitudeDelta: span, longitudeDelta: span)
                 }
             }
-            .sheet(item: $activeRootSheet, onDismiss: {
-                activeWidgetPhotoPickerSlot = pendingWidgetPhotoSlot
-                pendingWidgetPhotoSlot = nil
-            }) { sheet in
+            .sheet(item: $activeRootSheet) { sheet in
                 switch sheet {
             case .date:
                 NavigationView {
@@ -272,11 +265,6 @@ struct ContentView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { activeRootSheet = nil } } }
                 }
-            case .widgetPhoto:
-                WidgetPhotoSettingsView(onPick: { slot in
-                    pendingWidgetPhotoSlot = slot
-                    activeRootSheet = nil
-                })
             case .region:
                 VStack(spacing: 0) {
                     Capsule().fill(Color.gray.opacity(0.28)).frame(width: 38, height: 5).padding(.top, 10)
@@ -381,17 +369,11 @@ struct ContentView: View {
             }
             }
             }
-        .background(
-            WidgetPhotoPickerHost(requestedSlot: $activeWidgetPhotoPickerSlot) {
-                WidgetCenter.shared.reloadAllTimelines()
-            }
-            .frame(width: 0, height: 0)
-        )
         .preferredColorScheme(.light)
     }
 
     private enum RootSheet: String, Identifiable {
-        case date, widgetPhoto, region
+        case date, region
         var id: String { rawValue }
     }
 
@@ -431,16 +413,6 @@ struct ContentView: View {
                         .foregroundColor(Color(red: 0.43, green: 0.45, blue: 0.40))
                 }
                 Spacer(minLength: 0)
-                Button {
-                    activeRootSheet = .widgetPhoto
-                } label: {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.15, green: 0.19, blue: 0.17))
-                        .frame(width: 42, height: 42)
-                        .background(Color.white.opacity(0.75), in: Circle())
-                }
-                .accessibilityLabel("自定义小组件背景照片")
             }
             .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 18)
 
@@ -678,34 +650,6 @@ struct ContentView: View {
         if let data = try? JSONEncoder().encode(favoriteMarkets) {
             UserDefaults.standard.set(data, forKey: "GanJiFavoriteMarketsData")
         }
-        syncWidgetHomeData()
-    }
-
-    /// Mirror the homepage's favorites into the App Group for WidgetKit.
-    /// If a favorite ID was saved before its full market record, recover the record
-    /// from the current homepage data once the API/cache has loaded.
-    private func syncWidgetHomeData() {
-        let knownIDs = Set(favoriteMarkets.map(\.id))
-        let recovered = displayedMarkets.filter { favorites.contains($0.id) && !knownIDs.contains($0.id) }
-        if !recovered.isEmpty {
-            favoriteMarkets.append(contentsOf: recovered)
-            if let data = try? JSONEncoder().encode(favoriteMarkets) {
-                UserDefaults.standard.set(data, forKey: "GanJiFavoriteMarketsData")
-            }
-        }
-        guard let shared = UserDefaults(suiteName: "group.com.ganji.diary") else { return }
-        shared.set(Array(favorites).sorted(), forKey: "GanJiFavoriteMarketIDs")
-        if let data = try? JSONEncoder().encode(favoriteMarkets) {
-            shared.set(data, forKey: "GanJiFavoriteMarketsData")
-        }
-        // Share the same full market list the homepage renders, not just favorites.
-        if let data = try? JSONEncoder().encode(displayedMarkets) {
-            shared.set(data, forKey: "GanJiHomeMarketsData")
-        }
-        shared.set(selectedAreaCode, forKey: "GanJiSelectedAreaCode")
-        shared.set(selectedAreaDisplayName ?? "", forKey: "GanJiSelectedAreaName")
-        shared.synchronize()
-        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // Destination search: a dedicated location header, prominent input, and structured results.
@@ -1660,9 +1604,6 @@ struct ContentView: View {
             displayedMarkets = MarketCache.load(areaCode: areaCode) ?? MarketStore.load().filter { $0.areaCode == areaCode }
             marketLoadError = displayedMarkets.isEmpty ? "网络请求失败，请稍后重试" : "网络不可用，显示已缓存数据"
         }
-        // The first sync runs before this async fetch completes. Sync again now so
-        // favorites that can only be resolved from the loaded market list reach WidgetKit.
-        syncWidgetHomeData()
     }
 
     private func centerOnUser() {
