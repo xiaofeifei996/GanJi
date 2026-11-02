@@ -5,7 +5,7 @@ import UIKit
 private let ganJiGroupID = "group.com.ganji.diary"
 private let ganJiWidgetKind = "GanJiWidget"
 
-// MARK: - Timeline
+// MARK: - Timeline entry & provider
 
 private struct GanJiWidgetEntry: TimelineEntry {
     let date: Date
@@ -75,7 +75,7 @@ private struct GanJiWidgetProvider: TimelineProvider {
     }
 }
 
-// MARK: - Photo
+// MARK: - Photo loading
 
 private enum WidgetPhotoStore {
     static func photo(for family: WidgetFamily) -> UIImage? {
@@ -101,8 +101,6 @@ private enum WidgetPhotoStore {
         return downsized(image)
     }
 
-    /// WidgetKit draws a container-sized bitmap; a full-resolution photo can be
-    /// too large to draw. Cap the long edge at twice the largest widget size.
     private static func downsized(_ image: UIImage) -> UIImage {
         let maxDimension: CGFloat = 800
         let longest = max(image.size.width, image.size.height)
@@ -115,18 +113,17 @@ private enum WidgetPhotoStore {
     }
 }
 
-// MARK: - Palette
+// MARK: - Theme
 
-private enum P {
-    static let paper = Color(red: 0.98, green: 0.96, blue: 0.90)
-    static let field = Color(red: 0.82, green: 0.89, blue: 0.77)
-    static let ink = Color.white
-    static let sub = Color.white.opacity(0.84)
-    static let accent = Color(red: 1.0, green: 0.80, blue: 0.42)
-    static let leaf = Color(red: 0.55, green: 0.80, blue: 0.50)
+private enum T {
+    static let warm = Color(red: 0.98, green: 0.93, blue: 0.84)
+    static let sand = Color(red: 0.91, green: 0.85, blue: 0.72)
+    static let clay = Color(red: 0.83, green: 0.55, blue: 0.34)
+    static let moss = Color(red: 0.45, green: 0.60, blue: 0.38)
+    static let deep = Color(red: 0.22, green: 0.28, blue: 0.22)
 }
 
-// MARK: - Backdrop
+// MARK: - Background
 
 private struct WidgetBackdrop: View {
     let photo: UIImage?
@@ -138,28 +135,35 @@ private struct WidgetBackdrop: View {
                     .resizable()
                     .scaledToFill()
             } else {
-                LinearGradient(colors: [P.paper, P.field],
+                LinearGradient(colors: [T.warm, T.sand],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
             }
-            // A gentle dark wash keeps white text readable over any photo.
-            LinearGradient(colors: [.black.opacity(0.45), .black.opacity(0.18), .black.opacity(0.52)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            Color.black.opacity(0.30)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
     }
 }
 
-// MARK: - Content
+// MARK: - Widget content
 
 private struct GanJiWidgetView: View {
     let entry: GanJiWidgetEntry
     @Environment(\.widgetFamily) private var family
 
-    private var day: String { "\(Calendar.current.component(.day, from: entry.date))" }
-    private var month: String { "\(Calendar.current.component(.month, from: entry.date))月" }
-    private var weekday: String { LunarCalendar.weekdayText(entry.date) }
-    private var totalCount: Int { entry.today.count + entry.tomorrow.count + entry.dayAfter.count }
+    private var solarDay: String { "\(Calendar.current.component(.day, from: entry.date))" }
+    private var solarMonth: String { "\(Calendar.current.component(.month, from: entry.date))月" }
+    private var solarWeekday: String { LunarCalendar.weekdayText(entry.date) }
+    private var lunarText: String { LunarCalendar.lunarText(entry.date) }
+    private var gzText: String { LunarCalendar.ganzhiName(entry.date) }
+
+    private func firstNames(_ markets: [Market]) -> String {
+        markets.isEmpty ? "无" : markets.prefix(3).map(\.name).joined(separator: " ")
+    }
+
+    private func countText(_ markets: [Market]) -> String {
+        markets.isEmpty ? "休市" : "\(markets.count) 场"
+    }
 
     var body: some View {
         switch family {
@@ -169,139 +173,102 @@ private struct GanJiWidgetView: View {
         }
     }
 
-    private func names(_ markets: [Market]) -> String {
-        markets.isEmpty ? "暂无" : markets.prefix(2).map(\.name).joined(separator: "、")
-    }
-
-    private var brand: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(P.leaf)
-            Text("赶集日记")
-                .font(.system(size: 12, weight: .heavy))
-                .foregroundStyle(P.ink)
-            Circle().fill(P.leaf.opacity(0.6)).frame(width: 3, height: 3)
-            Text("赶集生活")
-                .font(.system(size: 8, weight: .bold, design: .rounded))
-                .tracking(1)
-                .foregroundStyle(P.sub)
-        }
-        .lineLimit(1)
-    }
-
-    // 小号：日期 + 今日开集。
+    // 小号：底部大数字日期，顶部状态圆点。
     private var small: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            brand
-            Spacer(minLength: 6)
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text(day)
-                    .font(.system(size: 50, weight: .black, design: .rounded))
-                    .foregroundStyle(P.ink)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(month).font(.system(size: 10, weight: .bold))
-                    Text(weekday).font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(P.sub)
-            }
-            Spacer(minLength: 6)
-            HStack(spacing: 6) {
-                Image(systemName: entry.today.isEmpty ? "sun.max.fill" : "basket.fill")
-                    .font(.system(size: 12, weight: .bold))
+        VStack(spacing: 0) {
+            HStack {
+                Circle()
+                    .fill(entry.today.isEmpty ? T.sand : T.clay)
+                    .frame(width: 7, height: 7)
+                Text(entry.today.isEmpty ? "今日休市" : "今日有圩")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 24, height: 24)
-                    .background(entry.today.isEmpty ? P.accent : P.leaf,
-                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(entry.today.isEmpty ? "今日休市" : "今日开集")
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundStyle(P.sub)
-                    Text(names(entry.today))
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(P.ink)
-                        .lineLimit(1)
-                }
+                Spacer()
+                Text(solarMonth)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.8))
             }
-            .padding(.horizontal, 8).padding(.vertical, 6)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    // 中号：左侧日期，右侧三天清单。
-    private var medium: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 0) {
-                brand
-                Spacer(minLength: 6)
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(day)
-                        .font(.system(size: 56, weight: .black, design: .rounded))
-                        .foregroundStyle(P.ink)
-                    Text(month)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(P.sub)
+            Spacer(minLength: 0)
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text(solarDay)
+                    .font(.system(size: 84, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.6)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(solarWeekday).font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                    Text(lunarText).font(.system(size: 11)).foregroundStyle(.white.opacity(0.85))
                 }
-                Text("\(weekday) · \(entry.areaName)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(P.sub)
-                Spacer(minLength: 6)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+    }
 
-            Rectangle().fill(P.sub.opacity(0.4)).frame(width: 1).padding(.vertical, 4)
+    // 中号：三张等宽竖向卡片，今天高亮。
+    private var medium: some View {
+        HStack(spacing: 8) {
+            dayColumn(title: "今天", markets: entry.today, highlight: true)
+            dayColumn(title: "明天", markets: entry.tomorrow, highlight: false)
+            dayColumn(title: "后天", markets: entry.dayAfter, highlight: false)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func dayColumn(title: String, markets: [Market], highlight: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .heavy))
+                .foregroundStyle(highlight ? T.deep : .white.opacity(0.9))
+                .padding(.horizontal, 9).padding(.vertical, 4)
+                .background(highlight ? T.warm : .white.opacity(0.16),
+                            in: Capsule())
+            Spacer(minLength: 0)
+            Text(countText(markets))
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Text(firstNames(markets))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .lineLimit(3)
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.white.opacity(highlight ? 0.14 : 0.08),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    // 大号：顶部横贯日期标题，下方三行排班。
+    private var large: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(solarDay)
+                    .font(.system(size: 58, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(solarMonth) · \(solarWeekday)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("\(lunarText) · \(gzText)日")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+                Spacer()
+                Text(entry.areaName)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .background(.white.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous))
 
             VStack(spacing: 8) {
-                row("今天", entry.today, P.leaf)
-                row("明天", entry.tomorrow, P.accent)
-                row("后天", entry.dayAfter, P.leaf)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    // 大号：日期 + 三日卡片。
-    private var large: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    brand
-                    Text(entry.areaName)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(P.sub)
-                }
-                Spacer()
-                Image(systemName: "basket.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(P.accent)
-                    .frame(width: 36, height: 36)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            HStack(alignment: .lastTextBaseline, spacing: 8) {
-                Text(day)
-                    .font(.system(size: 66, weight: .black, design: .rounded))
-                    .foregroundStyle(P.ink)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(month).font(.system(size: 11, weight: .bold)).foregroundStyle(P.sub)
-                    Text(weekday).font(.system(size: 11, weight: .semibold)).foregroundStyle(P.accent)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("未来三日").font(.system(size: 10)).foregroundStyle(P.sub)
-                    Text("\(totalCount) 场赶集")
-                        .font(.system(size: 15, weight: .heavy, design: .rounded))
-                        .foregroundStyle(P.ink)
-                }
-            }
-            Rectangle().fill(P.sub.opacity(0.4)).frame(height: 1)
-            VStack(spacing: 7) {
-                card("今天", "今日赶集", entry.today, P.leaf)
-                card("明天", "提前安排", entry.tomorrow, P.accent)
-                card("后天", "出行计划", entry.dayAfter, P.leaf)
+                scheduleRow(title: "今天", markets: entry.today, tone: T.clay)
+                scheduleRow(title: "明天", markets: entry.tomorrow, tone: T.moss)
+                scheduleRow(title: "后天", markets: entry.dayAfter, tone: T.sand)
             }
             Spacer(minLength: 0)
         }
@@ -309,32 +276,28 @@ private struct GanJiWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func row(_ title: String, _ markets: [Market], _ tint: Color) -> some View {
-        HStack(spacing: 7) {
-            Capsule().fill(tint).frame(width: 3, height: 28)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 9, weight: .bold)).foregroundStyle(tint)
-                Text(names(markets)).font(.system(size: 10, weight: .semibold)).foregroundStyle(P.ink).lineLimit(1)
+    private func scheduleRow(title: String, markets: [Market], tone: Color) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(tone)
+                .frame(width: 5, height: 40)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                Text(markets.isEmpty ? "今日无圩" : markets.prefix(3).map(\.name).joined(separator: "、"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(1)
             }
             Spacer(minLength: 0)
+            Text(countText(markets))
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(tone, in: Capsule())
         }
-        .padding(.horizontal, 8).padding(.vertical, 5)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private func card(_ title: String, _ subtitle: String, _ markets: [Market], _ tint: Color) -> some View {
-        HStack(spacing: 9) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 11, weight: .heavy)).foregroundStyle(tint)
-                Text(subtitle).font(.system(size: 7, weight: .bold)).foregroundStyle(P.sub)
-            }
-            .frame(width: 60, alignment: .leading)
-            Capsule().fill(tint.opacity(0.7)).frame(width: 3, height: 26)
-            Text(names(markets)).font(.system(size: 11, weight: .semibold)).foregroundStyle(P.ink).lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10).padding(.vertical, 7)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(.white.opacity(0.09),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
