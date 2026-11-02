@@ -118,9 +118,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release delete nightly --yes --cleanup-tag || true
+          gh release delete nightly --yes --cleanup-tag >/dev/null 2>&1 || true
           gh release create nightly GanJi-unsigned.ipa \
             --prerelease \
             --title "赶集日记 · 自动构建" \
-            --notes "自动构建，提交 ${{ github.sha }}，运行 #${{ github.run_number }}" \
-            --force
+            --notes "自动构建，提交 ${{ github.sha }}，运行 #${{ github.run_number }}"
