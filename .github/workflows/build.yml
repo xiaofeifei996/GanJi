@@ -89,9 +89,16 @@ jobs:
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
+          EXTENSION="$APP/PlugIns/GanJiWidget.appex"
           test -d "$APP"
+          test -d "$EXTENSION"
 
-          # Sign the containing app.
+          # Sign the widget extension first so its own App Group entitlement is embedded.
+          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$EXTENSION"
+          echo "===== Widget extension entitlements ====="
+          codesign -d --entitlements :- "$EXTENSION" 2>&1
+
+          # Sign the containing app last, after all nested code has been signed.
           codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
           echo "===== App entitlements ====="
           codesign -d --entitlements :- "$APP" 2>&1
