@@ -1,86 +1,88 @@
 #!/usr/bin/env python3
-"""大卡片风（车票）小组件预览。"""
+"""票根对切风小组件预览。"""
 from PIL import Image, ImageDraw, ImageFont
 
-PAGE = (237, 237, 242)
-TICKET = (41, 102, 230)
-TICKET_DEEP = (26, 77, 184)
-GRAY_TICKET = (140, 143, 149)
-WHITE = (255, 255, 255)
-TITLE = (26, 28, 33)
-SECONDARY = (107, 112, 122)
-TERTIARY = (153, 158, 168)
+PAPER = (248, 240, 224)
+PAPER_DEEP = (235, 224, 201)
+PUNCH = (237, 237, 242)
+STAMP = (199, 74, 51)
+TITLE = (38, 33, 28)
+SECONDARY = (115, 105, 89)
+TERTIARY = (158, 148, 130)
 
 BOLD = "/usr/share/fonts/noto/NotoSansCJK-Bold.ttc"
 REG = "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc"
 S = 2
 
 
-def f(size, bold=False):
-    return ImageFont.truetype(BOLD if bold else REG, int(size * S), index=0)
-
-
-def txt(d, x, y, s, size, color=TITLE, bold=False, anchor="la"):
-    d.text((x * S, y * S), s, font=f(size, bold), fill=color, anchor=anchor)
+def f(size, bold=False, serif=False):
+    return ImageFont.truetype(BOLD if (bold or serif) else REG, int(size * S), index=0)
 
 
 def paper(w, h, radius=20):
     W, H = w * S, h * S
-    img = Image.new("RGB", (W, H), PAGE)
+    img = Image.new("RGB", (W, H), PAPER)
+    # 斜向轻渐变
+    d = ImageDraw.Draw(img)
+    for y in range(H):
+        t = y / H * 0.5
+        c = tuple(int(PAPER[i] + (PAPER_DEEP[i] - PAPER[i]) * t) for i in range(3))
+        d.rectangle([0, y, W, y], fill=c)
     m = Image.new("L", (W, H), 0)
     ImageDraw.Draw(m).rounded_rectangle([0, 0, W - 1, H - 1], radius=radius * S, fill=255)
-    out = Image.new("RGB", (W, H), (52, 48, 78))
+    out = Image.new("RGB", (W, H), (58, 52, 88))
     out.paste(img, (0, 0), m)
     return out
 
 
-def ticket(d, x, y, w, h, title, sub, open_):
-    col = TICKET if open_ else GRAY_TICKET
-    d.rounded_rectangle([x * S, y * S, (x + w) * S, (y + h) * S], radius=15 * S, fill=col)
-    txt(d, x + 13, y + 9, sub, 9, (255, 255, 255), bold=True)
-    txt(d, x + 13, y + 22, title, 21, WHITE, bold=True)
-    return y + h
+def txt(d, x, y, s, size, color=TITLE, bold=False, serif=False, anchor="la"):
+    d.text((x * S, y * S), s, font=f(size, bold, serif), fill=color, anchor=anchor)
 
 
-def meter(d, x, y, w, boards):
-    """七格进度条：走过=淡、今天=白、未来开圩=半透明白、休=更淡。"""
-    n = len(boards)
-    step = w / n
-    for i, opens in enumerate(boards):
-        bx = x + step * i + 1.5
-        bw = step - 3
-        if i == 0:
-            col = WHITE
-        elif opens:
-            col = (255, 255, 255)
-        else:
-            col = (255, 255, 255)
-        alpha = 1.0 if i == 0 else (0.55 if opens else 0.18)
-        c = tuple(int(WHITE[j] * alpha + col_page[j] * (1 - alpha)) for j in range(3))
-        d.rounded_rectangle([bx * S, y * S, (bx + bw) * S, (y + 5) * S], radius=2.5 * S, fill=c)
+def postmark(d, cx, cy, r, text):
+    d.ellipse([(cx - r) * S, (cy - r) * S, (cx + r) * S, (cy + r) * S],
+              outline=STAMP, width=int(1.4 * S))
+    r2 = r - 2.5
+    d.ellipse([(cx - r2) * S, (cy - r2) * S, (cx + r2) * S, (cy + r2) * S],
+              outline=(*STAMP,), width=int(0.8 * S))
+    txt(d, cx, cy, text, r * 0.62, STAMP, bold=True, anchor="mm")
 
 
-col_page = PAGE
+def punch_v(d, x, y0, y1, n=6):
+    step = (y1 - y0) / (n - 1) if n > 1 else 1
+    for i in range(n):
+        cy = y0 + step * i
+        d.ellipse([(x - 1.75) * S, (cy - 1.75) * S, (x + 1.75) * S, (cy + 1.75) * S], fill=PUNCH)
 
-# 灰票颜色混合需要页面底色，先定义
-def blend_on(col_ticket, alpha):
-    return tuple(int(WHITE[i] * alpha + col_ticket[i] * (1 - alpha)) for i in range(3))
+
+def torn_h(d, x0, x1, y, n=18):
+    step = (x1 - x0) / (n - 1) if n > 1 else 1
+    for i in range(n):
+        cx = x0 + step * i
+        d.ellipse([(cx - 1.75) * S, (y - 1.75) * S, (cx + 1.75) * S, (y + 1.75) * S], fill=PUNCH)
 
 
 def small():
     w, h = 158, 158
     img = paper(w, h)
     d = ImageDraw.Draw(img)
-    p = 13
-    txt(d, p, p, "3", 34, TITLE, bold=True)
-    txt(d, p + 26, p + 2, "周二", 11, TITLE, bold=True)
-    txt(d, p + 26, p + 18, "九月十四", 9, TERTIARY)
+    p = 12
+    txt(d, p, p, "赶集历", 9, TERTIARY, bold=True)
+    postmark(d, w - p - 12, p + 12, 12, "圩")
 
-    ticket(d, p, 52, w - p * 2, 52, "大妙村", "今天开圩 · 另有 1 处", True)
+    # 左存根
+    txt(d, 38, 44, "11月", 8, STAMP, bold=True, anchor="ma")
+    txt(d, 38, 56, "3", 30, TITLE, serif=True, anchor="ma")
+    txt(d, 38, 88, "周二", 8, SECONDARY, bold=True, anchor="ma")
 
-    # DayMeter: 今天开、明休、后开、开、休、开、休
-    boards = [True, False, True, True, False, True, False]
-    meter(d, p, 128, w - p * 2, boards)
+    # 打孔线
+    punch_v(d, 66, 44, 106)
+
+    # 右主票
+    txt(d, 76, 56, "大妙村", 17, TITLE, serif=True)
+    txt(d, 76, 80, "今日开圩 · 2场", 8.5, SECONDARY, bold=True)
+
+    torn_h(d, p, w - p, h - 8)
     return img
 
 
@@ -88,27 +90,30 @@ def medium():
     w, h = 338, 158
     img = paper(w, h)
     d = ImageDraw.Draw(img)
-    p = 13
+    p = 12
 
-    # 左：主卡
-    ticket(d, p, 16, 148, 56, "大妙村", "今天 · 2 场", True)
+    # 主票
+    txt(d, p, p, "今日", 9, TERTIARY, bold=True)
+    postmark(d, 140, p + 13, 13, "圩")
+    txt(d, p, 44, "3", 34, TITLE, serif=True)
+    txt(d, p + 24, 62, "周二", 10, SECONDARY, bold=True)
+    txt(d, p, 84, "大妙村", 12, STAMP, serif=True, bold=True)
+    torn_h(d, p, 150, h - 8)
 
-    # 右：接下来
-    rx = p + 148 + 14
-    txt(d, rx, 16, "接下来", 10, SECONDARY, bold=True)
-    rows = [("明天", "罗秀镇"), ("周四", "麻垌镇")]
-    y = 34
-    for i, (lbl, name) in enumerate(rows):
-        txt(d, rx, y, lbl, 10, SECONDARY, bold=True)
-        txt(d, rx + 30, y - 2, name, 12, TITLE, bold=True)
-        if i == 0:
-            d.rectangle([rx * S, (y + 20) * S, (w - p) * S, (y + 20) * S + 1],
-                        fill=(26, 28, 33, 18))
-        y += 26
-    txt(d, rx, y - 6, "休", 12, TERTIARY)
+    # 撕孔
+    punch_v(d, 166, 30, 128)
 
-    boards = [True, False, True, True, False, True, False]
-    meter(d, p, 132, w - p * 2, boards)
+    # 右侧存根联
+    rx = 180
+    txt(d, rx, p, "存根", 9, TERTIARY, bold=True)
+    stubs = [("明", "罗秀镇", True), ("后", "麻垌镇", True), ("周四", "大妙村", True)]
+    y = 32
+    for lbl, name, open_ in stubs:
+        d.ellipse([rx * S, y * S, (rx + 18) * S, (y + 18) * S], fill=PAPER_DEEP)
+        txt(d, rx + 9, y + 9, lbl, 9, STAMP if open_ else TERTIARY, bold=True, anchor="mm")
+        txt(d, rx + 26, y + 2, name, 11.5, TITLE, serif=True)
+        y += 28
+    txt(d, rx, y, "周五 · 休", 11, TERTIARY)
     return img
 
 
@@ -116,45 +121,66 @@ def large():
     w, h = 338, 354
     img = paper(w, h)
     d = ImageDraw.Draw(img)
-    p = 14
-    txt(d, p, p, "11月3日 周二", 15, TITLE, bold=True)
-    txt(d, w - p, p + 4, "收藏 4 处", 10, SECONDARY, anchor="ra")
+    p = 12
+    txt(d, p, p, "赶集历 · 七日券", 9, TERTIARY, bold=True)
+    txt(d, w - p, p, "No.3", 9, STAMP, serif=True, anchor="ra")
 
-    # 主卡 + 右侧剩余圩名
-    ty = 36
-    d.rounded_rectangle([p * S, ty * S, (w - p) * S, (ty + 62) * S], radius=15 * S, fill=TICKET)
-    txt(d, p + 13, ty + 10, "今天开圩 · 共 2 场", 9, WHITE, bold=True)
-    txt(d, p + 13, ty + 24, "大妙村", 21, WHITE, bold=True)
-    txt(d, w - p - 13, ty + 16, "罗秀镇", 9, (255, 255, 255), bold=True, anchor="ra")
+    # 主票
+    d.rounded_rectangle([p * S, 24 * S, (w - p) * S, 76 * S], radius=12 * S, fill=PAPER_DEEP)
+    txt(d, p + 10, 34, "11月", 8, STAMP, bold=True, anchor="ma")
+    txt(d, p + 10, 44, "3", 26, TITLE, serif=True, anchor="ma")
+    txt(d, p + 10, 66, "周二", 8, SECONDARY, bold=True, anchor="ma")
+    punch_v(d, p + 56, 32, 70)
+    txt(d, p + 68, 34, "大妙村", 16, TITLE, serif=True)
+    txt(d, p + 68, 56, "今日开圩 · 2场", 8.5, SECONDARY, bold=True)
 
-    # 接下来七天 + meter
-    my = 118
-    txt(d, p, my, "接下来七天", 10, SECONDARY, bold=True)
-    boards = [False, True, True, False, True, False, False]
-    meter(d, w - p - 120, my - 1, 120, [not b for b in boards])  # 示意
+    # 撕孔横线
+    torn_h(d, p + 6, w - p - 6, 88)
 
-    rows = [("明", "罗秀镇", 1), ("后", "麻垌镇 · 六陈镇", 2),
-            ("周四", "大妙村", 1), ("周五", "休", 0)]
-    y = 140
-    for lbl, names, cnt in rows:
-        col = TICKET if cnt else TERTIARY
-        badge = tuple(int(TICKET[i] * 0.12 + PAGE[i] * 0.88) for i in range(3)) if cnt else \
-            tuple(int(TERTIARY[i] * 0.12 + PAGE[i] * 0.88) for i in range(3))
-        d.ellipse([p * S, y * S, (p + 22) * S, (y + 22) * S], fill=badge)
-        txt(d, p + 11, y + 4.5, lbl, 11, col, bold=True, anchor="ma")
-        txt(d, p + 31, y + 3, names, 12.5, TITLE if cnt else TERTIARY, bold=bool(cnt))
-        if cnt:
-            txt(d, w - p, y + 5, str(cnt), 10, SECONDARY, bold=True, anchor="ra")
-        y += 30
+    # 七张日票 4+3
+    tickets = [
+        ("3", "二", "大妙村", True, True),   # 今天
+        ("4", "三", "休", False, False),
+        ("5", "四", "麻垌镇", True, False),
+        ("6", "五", "罗秀镇", True, False),
+        ("7", "六", "大妙村", True, False),
+        ("8", "日", "休", False, False),
+        ("9", "一", "麻垌镇", True, False),
+    ]
+    cw = (w - p * 2 - 21) / 4
+    y0 = 100
+    for i, (day, wk, name, open_, today) in enumerate(tickets):
+        row = i // 4
+        col = i % 4
+        x = p + col * (cw + 7)
+        y = y0 + row * (88 + 8)
+        ch = 88
+        d.rounded_rectangle([x * S, y * S, (x + cw) * S, (y + ch) * S], radius=8 * S,
+                            fill=PAPER_DEEP,
+                            outline=STAMP if today else None, width=int(1.2 * S) if today else 0)
+        txt(d, x + 7, y + 6, day, 14, TITLE if open_ else TERTIARY, serif=True)
+        txt(d, x + 7 + (15 if len(day) < 2 else 24), y + 13, wk, 7.5, SECONDARY, bold=True)
+        if open_:
+            txt(d, x + 7, y + 28, name, 9.5, STAMP if today else TITLE, serif=True)
+        else:
+            txt(d, x + 7, y + 28, "休", 9, TERTIARY)
+        # 底部三个小孔
+        for k in range(3):
+            cx = x + 8 + k * 5
+            d.ellipse([(cx - 1.25) * S, (y + ch - 9) * S, (cx + 1.25) * S, (y + ch - 9 + 2.5) * S],
+                      fill=STAMP if open_ else TERTIARY)
     return img
 
 
 def empty(w, h):
     img = paper(w, h)
     d = ImageDraw.Draw(img)
-    p = 13
-    ticket(d, p, p, w - p * 2, 56, "去收藏圩点", "还没有收藏", False)
-    txt(d, p, p + 68, "点心形，这里就会出现它", 10, SECONDARY)
+    p = 12
+    txt(d, p, p, "赶集历", 9, TERTIARY, bold=True)
+    postmark(d, w - p - 12, p + 12, 12, "空")
+    txt(d, p, h / 2 - 20, "空白票", 9, TERTIARY, bold=True)
+    txt(d, p, h / 2 - 4, "去收藏圩点", 16, SECONDARY, serif=True)
+    torn_h(d, p, w - p, h - 8)
     return img
 
 
@@ -164,7 +190,7 @@ if __name__ == "__main__":
     pad = 22
     W = pad + 158 + pad + 338 + pad
     H = pad + 158 + pad + 158 + pad + 354 + pad
-    canvas = Image.new("RGB", (W * S, H * S), (52, 48, 78))
+    canvas = Image.new("RGB", (W * S, H * S), (58, 52, 88))
     canvas.paste(s, (pad * S, pad * S))
     canvas.paste(m, ((pad + 158 + pad) * S, pad * S))
     canvas.paste(e1, (pad * S, (pad + 158 + pad) * S))

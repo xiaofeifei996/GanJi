@@ -1,25 +1,27 @@
 import SwiftUI
 
-/// 大卡片风视觉层。
+/// 票根对切风视觉层。
 ///
-/// 和前几版的区别：不再有「列表 + 圆点」的档案感，
-/// 而是把「今天该去的圩」做成一张占满视觉重心的大卡片，
-/// 信息像车票一样排：大站名、时间感的进度条、小注脚。
-/// 底色故意选低饱和的暖灰，让蓝卡片跳出来。
+/// 版面语言来自一张真实票据：竖向打孔虚线把票面切成两半，
+/// 左半是「日期存根」，右半是「圩名主票」。
+/// 配色用暖米纸 + 一枚邮戳感的朱红圆，和前三版（纸墨历书 / 系统卡片 / 蓝色大票）都不同。
 enum Ink {
-    static let page = Color(red: 0.93, green: 0.93, blue: 0.95)
-    static let ticket = Color(red: 0.16, green: 0.40, blue: 0.90)
-    static let ticketDeep = Color(red: 0.10, green: 0.30, blue: 0.72)
-    static let onTicket = Color.white
-    static let title = Color(red: 0.10, green: 0.11, blue: 0.13)
-    static let secondary = Color(red: 0.42, green: 0.44, blue: 0.48)
-    static let tertiary = Color(red: 0.60, green: 0.62, blue: 0.66)
-    static let hairline = Color.white.opacity(0.55)
+    static let paper = Color(red: 0.97, green: 0.94, blue: 0.88)
+    static let paperDeep = Color(red: 0.92, green: 0.88, blue: 0.79)
+    static let stamp = Color(red: 0.78, green: 0.29, blue: 0.20)     // 邮戳朱红
+    static let title = Color(red: 0.15, green: 0.13, blue: 0.11)
+    static let secondary = Color(red: 0.45, green: 0.41, blue: 0.35)
+    static let tertiary = Color(red: 0.62, green: 0.58, blue: 0.51)
+    static let punch = Color(red: 0.93, green: 0.93, blue: 0.95)     // 打孔透出的底色
 }
 
 struct WidgetSurface: View {
     var body: some View {
-        Ink.page
+        LinearGradient(
+            colors: [Ink.paper, Ink.paperDeep],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }
 
@@ -34,70 +36,68 @@ extension View {
     }
 }
 
-/// 今天开圩的那张「主卡」：蓝色、大圩名、白字。
-/// 休市时整张卡转成灰色，语义立变。
-struct TicketCard: View {
-    let title: String
-    let subtitle: String
-    let isOpen: Bool
+/// 竖向打孔线：一列小圆点，模拟票据撕裂孔。
+struct PunchLine: View {
+    var height: CGFloat = 44
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(subtitle)
-                .font(.system(size: 9, weight: .bold))
-                .tracking(1.2)
-                .foregroundStyle(Ink.onTicket.opacity(0.75))
-                .lineLimit(1)
-            Text(title)
-                .font(.system(size: 21, weight: .heavy, design: .rounded))
-                .foregroundStyle(Ink.onTicket)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .padding(.top, 2)
-        }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 11)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .fill(isOpen ? Ink.ticket : Color(red: 0.55, green: 0.57, blue: 0.61))
-        )
-    }
-}
-
-/// 七日的「进度感」：一排圆角小格，走过的是深色，今天是白色，未来是浅色。
-struct DayMeter: View {
-    let boards: [DayBoard]
-
-    var body: some View {
-        HStack(spacing: 3) {
-            ForEach(Array(boards.prefix(7).enumerated()), id: \.offset) { index, board in
-                let isToday = Calendar.current.isDateInToday(board.date)
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                    .fill(meterColor(board: board, isToday: isToday))
-                    .frame(height: 5)
-                    .frame(maxWidth: .infinity)
+        VStack(spacing: 4) {
+            ForEach(0..<Int(height / 7), id: \.self) { _ in
+                Circle()
+                    .fill(Ink.punch)
+                    .frame(width: 3.5, height: 3.5)
             }
         }
     }
+}
 
-    private func meterColor(board: DayBoard, isToday: Bool) -> Color {
-        if isToday { return .white }
-        return board.markets.isEmpty
-            ? Color.white.opacity(0.18)
-            : Color.white.opacity(0.55)
+/// 邮戳：双圈朱红圆 + 中间小字，盖在票面角落。
+struct Postmark: View {
+    let text: String
+    var size: CGFloat = 30
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(Ink.stamp.opacity(0.85), lineWidth: 1.4)
+            Circle()
+                .strokeBorder(Ink.stamp.opacity(0.5), lineWidth: 0.8)
+                .padding(2.5)
+            Text(text)
+                .font(.system(size: size * 0.3, weight: .black))
+                .foregroundStyle(Ink.stamp)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .padding(4)
+        }
+        .frame(width: size, height: size)
+        .rotationEffect(.degrees(-8))
     }
 }
 
-/// 打头的小栏名。
+/// 撕票波浪边：底边一排半圆缺口。
+struct TornEdge: View {
+    var body: some View {
+        HStack(spacing: 2.5) {
+            ForEach(0..<24, id: \.self) { _ in
+                Circle()
+                    .fill(Ink.punch)
+                    .frame(width: 3.5, height: 3.5)
+                    .offset(y: 2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 struct SectionLabel: View {
     let text: String
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10, weight: .heavy))
-            .tracking(1.1)
-            .foregroundStyle(Ink.secondary)
+            .font(.system(size: 9, weight: .black))
+            .tracking(1.4)
+            .foregroundStyle(Ink.tertiary)
             .lineLimit(1)
     }
 }
@@ -105,7 +105,7 @@ struct SectionLabel: View {
 struct HairLine: View {
     var body: some View {
         Rectangle()
-            .fill(Ink.title.opacity(0.07))
-            .frame(height: 1)
+            .fill(Ink.tertiary.opacity(0.35))
+            .frame(height: 0.7)
     }
 }
