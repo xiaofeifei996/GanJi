@@ -8,6 +8,16 @@ struct MarketRule: Codable, Hashable {
     let area: String
     let repeatType: Int
     let repeatValue: [String]
+
+    /// 圩期规则是否可判定。false 表示 App 里也只会显示「圩期待核实」，
+    /// 小组件因此不把它算进任何一天的开圩列表。
+    var isResolved: Bool {
+        switch repeatType {
+        case 6: return !repeatValue.isEmpty
+        case 1, 4: return repeatValue.contains { MarketSchedule.lunarDayNumber($0) != nil }
+        default: return false
+        }
+    }
 }
 
 /// App 写给小组件的一份快照。
@@ -88,6 +98,7 @@ enum MarketSchedule {
     /// 注意：type 6 只取第一个生肖，与 App 列表里的判定保持一致 ——
     /// 两边口径必须相同，否则会出现「App 说今天有圩、小组件说休市」。
     static func opens(_ rule: MarketRule, on day: Date) -> Bool {
+        guard rule.isResolved else { return false }
         switch rule.repeatType {
         case 6:
             guard let first = rule.repeatValue.first,
@@ -107,7 +118,7 @@ enum MarketSchedule {
         switch rule.repeatType {
         case 6: return rule.repeatValue.joined(separator: "·")
         case 1, 4: return "农历" + rule.repeatValue.joined(separator: "·")
-        default: return "待核实"
+        default: return "圩期待核实"
         }
     }
 }

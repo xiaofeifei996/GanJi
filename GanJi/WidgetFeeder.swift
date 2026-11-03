@@ -8,14 +8,15 @@ import WidgetKit
 enum WidgetFeeder {
 
     static func publish(favorites: [Market]) {
-        let rules = favorites.compactMap { market -> MarketRule? in
-            guard let type = market.repeatType, type == 1 || type == 4 || type == 6,
-                  !market.repeatValue.isEmpty else { return nil }
-            return MarketRule(
+        // 全部收藏都过一遍，不做「是否可判定」的筛选：
+        // 少一条会让小组件的「收藏 N 处」和 App 对不上。
+        // 规则无法判定的圩（repeatType 非 1/4/6）只是永远不开圩，不影响计数。
+        let rules = favorites.map { market in
+            MarketRule(
                 id: market.id,
                 name: market.name,
                 area: market.area,
-                repeatType: type,
+                repeatType: market.repeatType ?? 0,
                 repeatValue: market.repeatValue
             )
         }
