@@ -41,16 +41,107 @@ struct WidgetFeed: Codable {
     }
 
     func publish() {
-        guard let data = try? JSONEncoder().encode(self) else { return }
-        WidgetFeed.sharedDefaults?.set(data, forKey: WidgetFeed.storageKey)
+        WidgetFeedStore.write(self)
     }
 
     /// 只返回确实由「收藏」生成的快照；旧版本或损坏的数据一律视为没有快照。
     static func current() -> WidgetFeed? {
-        guard let data = sharedDefaults?.data(forKey: storageKey),
+        guard let data = WidgetFeedStore.read(),
               let feed = try? JSONDecoder().decode(WidgetFeed.self, from: data),
               feed.source == favoriteSource else { return nil }
         return feed
+    }
+}
+
+/// 快照的实际存放位置。
+///
+/// 为什么不只用 `UserDefaults(suiteName:)`：在没有 provisioning profile 的
+/// 自签名 / TrollStore 安装下，`UserDefaults(suiteName: "group...")`
+/// 可能悄悄退化成 App 自己容器里的 plist —— 写不报错、读也没问题，
+/// 但扩展进程读到的是另一份（空的），于是小组件永远显示「尚未同步」。
+/// cfprefsd 还有缓存时机问题：App 刚写完就 `reloadAllTimelines()`，
+/// 扩展可能还没看到落盘的值。
+///
+/// 因此改成「多通道写、多通道读」，任何一条通就够：
+///   1. App Group 容器里的扁平 JSON（有 profile / 越狱环境下最正规）
+///   2. 沙盒外的固定路径（配合 entitlements 的 absolute-path 例外）
+///
+/// 文件是直接读写，跨进程可见性不依赖 cfprefsd 的缓存时机。
+enum WidgetFeedStore {
+    static let fileName = "WidgetFeed.json"
+
+    /// 沙盒外兜底目录。已写入 App 与扩展的 entitlements 例外清单。
+    static let fallbackDirectory = "/var/mobile/Library/GanJi"
+
+    static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetFeed.appGroupID)
+    }
+
+    /// 按优先级排列的读写位置。
+    static var targets: [URL] {
+        var urls = [URL]()
+        if let container = containerURL {
+            urls.append(container.appendingPathComponent(fileName))
+        }
+        urls.append(URL(fileURLWithPath: fallbackDirectory).appendingPathComponent(fileName))
+        return urls
+    }
+
+    struct Report {
+        var written: [String] = []
+        var verified = false
+        var ruleCount = 0
+        var failure: String?
+
+        /// 只写短名字，避免界面上出现一长串绝对路径。
+        var summary: String {
+            if let failure { return "小组件快照写入失败：\(failure)" }
+            let where_ = written.map { ($0 as NSString).lastPathComponent }.joined(separator: "、")
+            let verify = verified ? "，已回读确认" : ""
+            return "小组件快照：\(ruleCount) 条已写入（\(where_)\(verify)）"
+        }
+    }
+
+    @discardableResult
+    static func write(_ feed: WidgetFeed) -> Report {
+        var report = Report(ruleCount: feed.rules.count)
+        guard let data = try? JSONEncoder().encode(feed) else {
+            report.failure = "编码失败"
+            return report
+        }
+
+        for url in targets {
+            let dir = url.deletingLastPathComponent()
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            if (try? data.write(to: url, options: .atomic)) != nil {
+                report.written.append(url.path)
+            }
+        }
+
+        // UserDefaults 作为附加通道，读不到也不影响文件路径。
+        WidgetFeed.sharedDefaults?.set(data, forKey: WidgetFeed.storageKey)
+
+        if report.written.isEmpty {
+            report.failure = "所有路径均不可写"
+            return report
+        }
+
+        // 回读确认：写成功后立刻按扩展的读法再读一遍，
+        // 这样「写进去了但读不出来」不会被误判成成功。
+        report.verified = read() != nil
+        if !report.verified {
+            report.failure = "写入后回读失败"
+        }
+        return report
+    }
+
+    static func read() -> Data? {
+        for url in targets {
+            if let data = try? Data(contentsOf: url), !data.isEmpty {
+                return data
+            }
+        }
+        return WidgetFeed.sharedDefaults?.data(forKey: WidgetFeed.storageKey)
     }
 }
 

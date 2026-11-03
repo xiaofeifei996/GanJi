@@ -64,6 +64,8 @@ struct ContentView: View {
     @State private var showMainPage = false
     @State private var favorites: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
     @State private var favoriteMarkets: [Market] = (try? JSONDecoder().decode([Market].self, from: UserDefaults.standard.data(forKey: "GanJiFavoriteMarketsData") ?? Data())) ?? []
+    /// Diagnostics for the widget snapshot handoff, shown in the favorites tab.
+    @State private var widgetFeedReport: String = ""
     @State private var homeTab: HomeTab = .home
     @State private var pendingUserCentering = false
     @State private var region = MKCoordinateRegion(
@@ -527,6 +529,12 @@ struct ContentView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("已收藏 · \(saved.count) 个地点").font(.system(size: 13, weight: .semibold)).foregroundColor(.secondary).padding(.bottom, 4)
+                            if !widgetFeedReport.isEmpty {
+                                Text(widgetFeedReport)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(widgetFeedReport.contains("失败") ? .red : .secondary)
+                                    .padding(.bottom, 6)
+                            }
                             ForEach(saved) { market in
                                 HStack(spacing: 13) {
                                     RoundedRectangle(cornerRadius: 12).fill(Color(red: 0.88, green: 0.40, blue: 0.23)).frame(width: 5)
@@ -1634,7 +1642,7 @@ struct ContentView: View {
         // Filter by the favorite IDs as well: `favoriteMarkets` can hold records whose
         // star was removed elsewhere, and a stale record must not linger on the widget.
         let starred = favoriteMarkets.filter { favorites.contains($0.id) }
-        WidgetFeeder.publish(favorites: starred)
+        widgetFeedReport = WidgetFeeder.publish(favorites: starred).summary
     }
 
     private func centerOnUser() {

@@ -7,7 +7,8 @@ import WidgetKit
 /// 也只写「名字 + 地区 + 圩期规则」，不写坐标、地址、备注，更不写任何图片。
 enum WidgetFeeder {
 
-    static func publish(favorites: [Market]) {
+    @discardableResult
+    static func publish(favorites: [Market]) -> WidgetFeedStore.Report {
         // 全部收藏都过一遍，不做「是否可判定」的筛选：
         // 少一条会让小组件的「收藏 N 处」和 App 对不上。
         // 规则无法判定的圩（repeatType 非 1/4/6）只是永远不开圩，不影响计数。
@@ -20,11 +21,13 @@ enum WidgetFeeder {
                 repeatValue: market.repeatValue
             )
         }
-        WidgetFeed(
+        let feed = WidgetFeed(
             source: WidgetFeed.favoriteSource,
             updatedAt: Date(),
             rules: rules
-        ).publish()
+        )
+        let report = WidgetFeedStore.write(feed)
         WidgetCenter.shared.reloadAllTimelines()
+        return report
     }
 }
