@@ -213,6 +213,7 @@ struct ContentView: View {
             }
             .onAppear {
                 syncFavoriteRecords()
+                publishWidgetFeed()
                 locator.start()
                 Task { await refreshMarkets(for: selectedAreaCode) }
                 if let first = allMarkets.first {
@@ -1622,6 +1623,13 @@ struct ContentView: View {
         // The first sync runs before this async fetch completes. Run it again now so
         // favorites that can only be resolved from the loaded market list get their record.
         syncFavoriteRecords()
+        publishWidgetFeed()
+    }
+
+    /// Hand the markets currently on screen to the widget extension.
+    /// Only schedule rules travel; the widget draws everything itself.
+    private func publishWidgetFeed() {
+        WidgetFeeder.publish(markets: displayedMarkets, region: selectedAreaDisplayName ?? "")
     }
 
     private func centerOnUser() {

@@ -85,16 +85,21 @@ jobs:
           tail -n 50 build.log
           exit "$status"
 
-      - name: Ad-hoc sign the app
+      - name: Sign app and widget extension
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
+          EXTENSION="$APP/PlugIns/GanJiWidget.appex"
           test -d "$APP"
+          test -d "$EXTENSION"
 
-          # The widget extension was removed, so only the app bundle needs signing.
-          codesign --force --sign - --timestamp=none "$APP"
-          echo "===== App signature ====="
-          codesign -dv "$APP" 2>&1
+          # Nested code first: the extension carries its own App Group entitlement.
+          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$EXTENSION"
+          codesign -d --entitlements :- "$EXTENSION" 2>&1
+
+          # Then the containing app, once all nested code is final.
+          codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
+          codesign -d --entitlements :- "$APP" 2>&1
 
       - name: Package IPA
         run: |

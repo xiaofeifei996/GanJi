@@ -1,13 +1,24 @@
 # GanJi — 全国行政区划数据加载
 
-## 当前变更：移除主屏小组件
+## 当前变更：重做三个尺寸的小组件（1.4.0）
 
-- 删除 `Widget/` 整个小组件扩展目标（`GanJiWidget.swift`、`GanJiWidget.entitlements`、背景图片资源）。
-- 删除 App 内的相册选图入口 `GanJi/WidgetPhotoSettings.swift`（`PhotoSlot` / `BackdropPickerSheet` / `PhotoPickerHost`），以及首页右上角「自定义小组件背景照片」按钮。
-- 删除 App 与 App Group（`group.com.ganji.diary`）之间的数据同步逻辑：收藏、地区、集市列表不再写入共享容器，也不再触发 `WidgetCenter` 刷新。
-- 收藏记录补全逻辑保留，重命名为 `syncFavoriteRecords()`，只写本地 `UserDefaults`。
-- 移除 App 与扩展的 `com.apple.security.application-groups` 权限，`project.yml` 不再生成小组件 target，CI 只对 App 本体做 ad-hoc 签名。
-- 说明：`Shared/MarketData.swift` 的 `MarketStore.opens(on:market:)` 原为小组件按天判断开圩而新增，当前已无调用方，但属于通用日历判定工具，暂时保留。
+旧的「真实照片背景」版小组件已整份删除，现按「纸墨历书」重新设计，不复用任何旧代码或图片。
+
+**为什么换掉照片背景**：iOS 26 的液态玻璃主屏会移除没有声明为容器背景的内容层，
+照片被画在 `ZStack` 里当普通视图，因此整块小组件空白。新版完全不用图片，
+纸张底由渐变与色块自绘，并通过 `containerBackground(for: .widget)` 声明（iOS 17+），
+让系统把它当作真正的背景层来保留。
+
+**三个尺寸是三套版面，不是一张图缩放**
+- 小号「印章」：朱砂方印压住今日日期，右侧农历与干支，底部列今日开圩的圩名；休市时给出下一个开圩日。
+- 中号「刻度带」：未来七日横排，开圩日实心点（今日朱砂、其余青绿），休市日空心环；底部一行列出今日圩名。
+- 大号「历书页」：七日逐行，每行日期、星期、干支、圩名与圩期规则，行尾角标为当日场数。
+
+**数据链路**：`Shared/WidgetFeed.swift` 定义 `MarketRule`（id/名称/地区/圩期规则）与 `MarketSchedule`（地支三组相位 + 农历日匹配），
+App 侧 `GanJi/WidgetFeeder.swift` 在地区刷新后把当前集市压成快照写入 App Group 的 `GanJiWidgetFeedV1`，
+扩展侧 `Widget/WidgetProvider.swift` 读取并生成七日版面。只传规则，不传坐标、地址或任何图片。
+
+**兼容性**：`data`/`region.json` 未改动；`MarketStore` 保持原样，`Shared/MarketData.swift` 的 `opens(on:)` 仍未被使用，留作通用工具。
 
 ## 当前变更：移除硬编码地区备用项
 
