@@ -7,8 +7,8 @@ struct GanJiBoardView: View {
 
     var body: some View {
         Group {
-            if entry.boards.isEmpty {
-                EmptyBoard()
+            if entry.boards.isEmpty || entry.favoriteCount == 0 {
+                EmptyBoard(entry: entry)
             } else {
                 switch family {
                 case .systemSmall: SealBoard(entry: entry)
@@ -21,16 +21,33 @@ struct GanJiBoardView: View {
     }
 }
 
-/// 还没同步过圩日时的空状态。不用占位假数据，直接说清要做哪一步。
+/// 没有可显示的圩日时的说明页。
+/// 「从未同步」和「同步了但一个都没收藏」是两种完全不同的状态，必须分开讲。
 private struct EmptyBoard: View {
+    let entry: GanJiEntry
+
+    private var title: String {
+        entry.synced ? "还没有收藏" : "尚未同步"
+    }
+
+    private var detail: String {
+        if entry.synced {
+            return "在「赶集日记」里点心形收藏圩点，这里就只显示收藏的那些"
+        }
+        return "打开「赶集日记」，选一次地区即可写入圩日"
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             SectionLabel(text: "赶集历")
-            Spacer(minLength: 4)
-            Text("尚未同步")
+            Spacer(minLength: 6)
+            Text(title)
                 .font(.system(size: 15, weight: .heavy, design: .serif))
                 .foregroundStyle(Paper.ink)
-            Text("打开「赶集日记」，选一次地区即可写入圩日")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer(minLength: 4)
+            Text(detail)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Paper.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
@@ -54,7 +71,7 @@ struct GanJiWidget: Widget {
         // 版面自己控制内边距，不要再叠加系统的内容边距。
         .contentMarginsDisabled()
         .configurationDisplayName("赶集历")
-        .description("今日圩日与未来七日的开圩安排")
+        .description("只显示你收藏的圩点，今日与未来七日的开圩安排")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

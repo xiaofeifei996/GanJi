@@ -653,6 +653,8 @@ struct ContentView: View {
             UserDefaults.standard.set(data, forKey: "GanJiFavoriteMarketsData")
         }
         syncFavoriteRecords()
+        // Starring or unstarring a market must show up on the widget right away.
+        publishWidgetFeed()
     }
 
     /// If a favorite ID was saved before its full market record, recover the record
@@ -1626,10 +1628,13 @@ struct ContentView: View {
         publishWidgetFeed()
     }
 
-    /// Hand the markets currently on screen to the widget extension.
-    /// Only schedule rules travel; the widget draws everything itself.
+    /// Hand the favorites to the widget extension.
+    /// The widget shows only the markets the user starred in the app, never the whole region.
     private func publishWidgetFeed() {
-        WidgetFeeder.publish(markets: displayedMarkets, region: selectedAreaDisplayName ?? "")
+        // Filter by the favorite IDs as well: `favoriteMarkets` can hold records whose
+        // star was removed elsewhere, and a stale record must not linger on the widget.
+        let starred = favoriteMarkets.filter { favorites.contains($0.id) }
+        WidgetFeeder.publish(favorites: starred)
     }
 
     private func centerOnUser() {

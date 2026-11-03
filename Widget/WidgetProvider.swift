@@ -11,9 +11,11 @@ struct DayBoard: Identifiable {
 
 struct GanJiEntry: TimelineEntry {
     let date: Date
-    let region: String
     let boards: [DayBoard]
+    /// 是否已经收到过一份快照（用来区分「从未同步」和「同步了但没收藏」）。
     let synced: Bool
+    /// 收藏的圩点数。为 0 时小组件应该提示去 App 里收藏，而不是说「今日休市」。
+    let favoriteCount: Int
 
     var today: [MarketRule] { boards.first?.markets ?? [] }
 
@@ -31,7 +33,8 @@ struct GanJiEntry: TimelineEntry {
             let list = rules.filter { MarketSchedule.opens($0, on: day) }
             return DayBoard(date: day, markets: list)
         }
-        return GanJiEntry(date: Date(), region: "桂平市", boards: boards, synced: true)
+        return GanJiEntry(date: Date(), boards: boards,
+                          synced: true, favoriteCount: rules.count)
     }
 }
 
@@ -59,12 +62,14 @@ struct GanJiProvider: TimelineProvider {
         let cal = Calendar.current
         let start = cal.startOfDay(for: now)
         guard let feed = WidgetFeed.current() else {
-            return GanJiEntry(date: now, region: "", boards: [], synced: false)
+            return GanJiEntry(date: now, boards: [], synced: false, favoriteCount: 0)
         }
+        // 快照里只包含收藏的圩点，所以这里的 boards 天然只有收藏。
         let boards = (0..<7).compactMap { offset -> DayBoard? in
             guard let day = cal.date(byAdding: .day, value: offset, to: start) else { return nil }
             return DayBoard(date: day, markets: feed.rules.filter { MarketSchedule.opens($0, on: day) })
         }
-        return GanJiEntry(date: now, region: feed.regionName, boards: boards, synced: true)
+        return GanJiEntry(date: now, boards: boards,
+                          synced: true, favoriteCount: feed.rules.count)
     }
 }

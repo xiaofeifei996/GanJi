@@ -27,7 +27,7 @@ struct SealBoard: View {
                     .foregroundStyle(Paper.inkSoft)
                 Spacer(minLength: 0)
                 if !markets.isEmpty {
-                    Text("\(markets.count) 处")
+                    Text("开 \(markets.count) 处")
                         .font(.system(size: 9, weight: .heavy))
                         .foregroundStyle(Paper.vermilion)
                 }
@@ -70,13 +70,17 @@ struct SealBoard: View {
 
             if markets.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("今日休市")
-                        .font(.system(size: 13, weight: .bold))
+                    Text("收藏的圩今休")
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(Paper.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     if let next = nextMarketDay() {
-                        Text("\(next.label) 起圩")
-                            .font(.system(size: 10, weight: .medium))
+                        Text("\(next.label)·\(next.name) 起圩")
+                            .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(Paper.inkSoft)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                 }
             } else {
@@ -102,15 +106,15 @@ struct SealBoard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// 今天之后的第一个开圩日，给「今日休市」补一句有信息量的提示。
-    private func nextMarketDay() -> (label: String, date: Date)? {
+    /// 今天之后的第一个开圩日，给「收藏的圩今休」补一句有信息量的提示。
+    private func nextMarketDay() -> (label: String, name: String, date: Date)? {
         for board in entry.boards.dropFirst() where !board.markets.isEmpty {
             let offset = Calendar.current.dateComponents(
                 [.day], from: Calendar.current.startOfDay(for: entry.date),
                 to: Calendar.current.startOfDay(for: board.date)
             ).day ?? 0
             let label = offset == 1 ? "明天" : LunarCalendar.weekdayText(board.date)
-            return (label, board.date)
+            return (label, board.markets[0].name, board.date)
         }
         return nil
     }
@@ -126,7 +130,7 @@ struct StripBoard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(entry.region.isEmpty ? "赶集日记" : entry.region)
+                Text("收藏 \(entry.favoriteCount) 处")
                     .font(.system(size: 12, weight: .heavy))
                     .foregroundStyle(Paper.ink)
                     .lineLimit(1)
@@ -174,7 +178,7 @@ struct StripBoard: View {
 
     private var todayLine: String {
         if !entry.synced { return "打开 App 同步圩日" }
-        if today.isEmpty { return "今日休市" }
+        if today.isEmpty { return "收藏的圩今日都不开" }
         let names = today.prefix(3).map(\.name).joined(separator: " · ")
         return today.count > 3 ? names + " 等 \(today.count) 处" : names
     }
@@ -273,7 +277,7 @@ struct AlmanacBoard: View {
 
     private var footerNote: some View {
         HStack(spacing: 6) {
-            Text(entry.region.isEmpty ? "赶集日记" : entry.region)
+            Text("收藏 \(entry.favoriteCount) 处")
                 .font(.system(size: 9, weight: .heavy))
                 .tracking(1.2)
                 .foregroundStyle(Paper.inkSoft)
@@ -284,12 +288,14 @@ struct AlmanacBoard: View {
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(Paper.vermilion)
             } else if entry.boards.allSatisfy({ $0.markets.isEmpty }) {
-                Text("未来七日无圩")
-                    .font(.system(size: 9, weight: .medium))
+                Text("收藏的圩七日内无开圩")
+                    .font(.system(size: 8, weight: .medium))
                     .foregroundStyle(Paper.inkSoft)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             } else {
                 let total = entry.boards.reduce(0) { $0 + $1.markets.count }
-                Text("七日 \(total) 场")
+                Text("七日开 \(total) 场")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(Paper.inkSoft)
             }

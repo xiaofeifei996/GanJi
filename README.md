@@ -14,9 +14,15 @@
 - 中号「刻度带」：未来七日横排，开圩日实心点（今日朱砂、其余青绿），休市日空心环；底部一行列出今日圩名。
 - 大号「历书页」：七日逐行，每行日期、星期、干支、圩名与圩期规则，行尾角标为当日场数。
 
-**数据链路**：`Shared/WidgetFeed.swift` 定义 `MarketRule`（id/名称/地区/圩期规则）与 `MarketSchedule`（地支三组相位 + 农历日匹配），
-App 侧 `GanJi/WidgetFeeder.swift` 在地区刷新后把当前集市压成快照写入 App Group 的 `GanJiWidgetFeedV1`，
+**数据源只有收藏**：小组件显示的是 App 里点心形收藏的圩点，不是当前地区的全部圩日，
+所以收藏可以跨地区。`Shared/WidgetFeed.swift` 定义 `MarketRule`（id/名称/地区/圩期规则）与 `MarketSchedule`（地支三组相位 + 农历日匹配），
+App 侧 `GanJi/WidgetFeeder.swift` 把收藏压成快照写入 App Group 的 `GanJiWidgetFeedV1`，
 扩展侧 `Widget/WidgetProvider.swift` 读取并生成七日版面。只传规则，不传坐标、地址或任何图片。
+
+快照带 `source` 字段标记来源；1.4.0 写过「全区圩点」的旧快照会被识别并丢弃，
+避免升级后突然显示一堆没收藏过的圩。收藏增删会立即触发 `reloadAllTimelines()`。
+
+空状态分两种：从未同步过显示「尚未同步」，同步了但没有收藏显示「还没有收藏」。
 
 **兼容性**：`data`/`region.json` 未改动；`MarketStore` 保持原样，`Shared/MarketData.swift` 的 `opens(on:)` 仍未被使用，留作通用工具。
 

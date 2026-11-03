@@ -72,7 +72,7 @@ def small():
     d = ImageDraw.Draw(img)
     text(d, (13, 12), "今日", 10, INK_SOFT, bold=True)
     text(d, (45, 12), "周二", 10, INK_SOFT, bold=True)
-    text(d, (145, 12), "3 处", 9, VERM, bold=True, anchor="ra")
+    text(d, (145, 12), "开 2 处", 9, VERM, bold=True, anchor="ra")
 
     # 印章
     x, y, s = 13, 45, 54
@@ -96,7 +96,7 @@ def small():
 def medium():
     img = paper(338, 158)
     d = ImageDraw.Draw(img)
-    text(d, (13, 12), "桂平市", 12, INK, bold=True)
+    text(d, (13, 12), "收藏 5 处", 12, INK, bold=True)
     text(d, (338 - 13, 14), "未来七日", 10, INK_SOFT, bold=True, anchor="ra")
 
     labels = [("周二", 3, "today"), ("周三", 4, "ring"), ("周四", 5, "on"),
@@ -154,8 +154,8 @@ def large():
         if i < len(rows) - 1:
             hairline(d, 49, 323, y + 26, 0.22)
         y += 38
-    text(d, (15, y + 4), "桂 平 市", 9, INK_SOFT, bold=True)
-    text(d, (323, y + 4), "七日 9 场", 9, INK_SOFT, anchor="ra")
+    text(d, (15, y + 4), "收 藏 5 处", 9, INK_SOFT, bold=True)
+    text(d, (323, y + 4), "七日开 9 场", 9, INK_SOFT, anchor="ra")
     return img
 
 

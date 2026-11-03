@@ -10,10 +10,17 @@ struct MarketRule: Codable, Hashable {
     let repeatValue: [String]
 }
 
-/// App 写给小组件的一份快照。没有照片、没有大图，只有规则列表和地区名。
+/// App 写给小组件的一份快照。
+///
+/// 内容只有「收藏的圩点」—— 小组件从不显示整个地区的圩日。
+/// `source` 用来识别旧版本写下的快照（1.4.0 曾写全区圩点），
+/// 遇到不认识的来源就当作尚未同步，避免升级后突然显示一堆没收藏的圩。
 struct WidgetFeed: Codable {
+    /// 当前语义：只含收藏。改语义时同步递增，旧快照会被丢弃。
+    static let favoriteSource = "favorites"
+
+    var source: String
     var updatedAt: Date
-    var regionName: String
     var rules: [MarketRule]
 
     static let appGroupID = "group.com.ganji.diary"
@@ -28,9 +35,12 @@ struct WidgetFeed: Codable {
         WidgetFeed.sharedDefaults?.set(data, forKey: WidgetFeed.storageKey)
     }
 
+    /// 只返回确实由「收藏」生成的快照；旧版本或损坏的数据一律视为没有快照。
     static func current() -> WidgetFeed? {
-        guard let data = sharedDefaults?.data(forKey: storageKey) else { return nil }
-        return try? JSONDecoder().decode(WidgetFeed.self, from: data)
+        guard let data = sharedDefaults?.data(forKey: storageKey),
+              let feed = try? JSONDecoder().decode(WidgetFeed.self, from: data),
+              feed.source == favoriteSource else { return nil }
+        return feed
     }
 }
 
