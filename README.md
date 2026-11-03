@@ -1,5 +1,14 @@
 # GanJi — 全国行政区划数据加载
 
+## 当前变更：移除主屏小组件
+
+- 删除 `Widget/` 整个小组件扩展目标（`GanJiWidget.swift`、`GanJiWidget.entitlements`、背景图片资源）。
+- 删除 App 内的相册选图入口 `GanJi/WidgetPhotoSettings.swift`（`PhotoSlot` / `BackdropPickerSheet` / `PhotoPickerHost`），以及首页右上角「自定义小组件背景照片」按钮。
+- 删除 App 与 App Group（`group.com.ganji.diary`）之间的数据同步逻辑：收藏、地区、集市列表不再写入共享容器，也不再触发 `WidgetCenter` 刷新。
+- 收藏记录补全逻辑保留，重命名为 `syncFavoriteRecords()`，只写本地 `UserDefaults`。
+- 移除 App 与扩展的 `com.apple.security.application-groups` 权限，`project.yml` 不再生成小组件 target，CI 只对 App 本体做 ad-hoc 签名。
+- 说明：`Shared/MarketData.swift` 的 `MarketStore.opens(on:market:)` 原为小组件按天判断开圩而新增，当前已无调用方，但属于通用日历判定工具，暂时保留。
+
 ## 当前变更：移除硬编码地区备用项
 
 - 删除 `regionOptions` 中的 6 条广西县级地区硬编码数据，以及由它们推导省、市记录的逻辑。
