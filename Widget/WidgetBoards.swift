@@ -26,6 +26,11 @@ struct SealBoard: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Paper.inkSoft)
                 Spacer(minLength: 0)
+                if !markets.isEmpty {
+                    Text("\(markets.count) 处")
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(Paper.vermilion)
+                }
             }
 
             Spacer(minLength: 4)
@@ -36,12 +41,12 @@ struct SealBoard: View {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(markets.isEmpty ? Paper.inkSoft.opacity(0.55) : Paper.vermilion)
                     Text(dayNumber)
-                        .font(.system(size: 34, weight: .black, design: .serif))
+                        .font(.system(size: 33, weight: .black, design: .serif))
                         .foregroundStyle(Paper.cream)
                         .minimumScaleFactor(0.6)
                         .lineLimit(1)
                 }
-                .frame(width: 54, height: 54)
+                .frame(width: 52, height: 52)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(LunarCalendar.lunarText(entry.date))
@@ -57,11 +62,11 @@ struct SealBoard: View {
                 Spacer(minLength: 0)
             }
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 5)
 
             HairLine()
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 5)
 
             if markets.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
@@ -87,13 +92,8 @@ struct SealBoard: View {
                                               weight: index == 0 ? .bold : .medium))
                                 .foregroundStyle(index == 0 ? Paper.ink : Paper.inkSoft)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
-                    }
-                    if markets.count > 2 {
-                        Text("另有 \(markets.count - 2) 处")
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Paper.inkSoft.opacity(0.8))
-                            .padding(.leading, 8)
                     }
                 }
             }
@@ -229,14 +229,14 @@ struct AlmanacBoard: View {
         VStack(alignment: .leading, spacing: 0) {
             headerForToday
 
-            HairLine().padding(.vertical, 10)
+            HairLine().padding(.vertical, 8)
 
             VStack(spacing: 0) {
                 ForEach(entry.boards) { board in
                     AlmanacRow(board: board)
                     if board.id != entry.boards.last?.id {
                         Rectangle()
-                            .fill(Paper.rule.opacity(0.22))
+                            .fill(Paper.rule.opacity(0.20))
                             .frame(height: 1)
                             .padding(.leading, 34)
                     }
@@ -247,17 +247,18 @@ struct AlmanacBoard: View {
 
             footerNote
         }
-        .padding(15)
+        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var headerForToday: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(monthTitle)
-                .font(.system(size: 15, weight: .heavy, design: .serif))
+                .font(.system(size: 16, weight: .heavy, design: .serif))
                 .foregroundStyle(Paper.ink)
-            SectionLabel(text: entry.region.isEmpty ? "赶集日记" : entry.region)
-            Spacer(minLength: 0)
+                .lineLimit(1)
+                .fixedSize()
+            Spacer(minLength: 4)
             Text("\(LunarCalendar.ganzhiName(entry.date)) · \(LunarCalendar.lunarText(entry.date))")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Paper.inkSoft)
@@ -271,19 +272,29 @@ struct AlmanacBoard: View {
     }
 
     private var footerNote: some View {
-        Group {
+        HStack(spacing: 6) {
+            Text(entry.region.isEmpty ? "赶集日记" : entry.region)
+                .font(.system(size: 9, weight: .heavy))
+                .tracking(1.2)
+                .foregroundStyle(Paper.inkSoft)
+                .lineLimit(1)
+            Spacer(minLength: 4)
             if !entry.synced {
-                Text("在「赶集日记」里切换一次地区即可同步圩日")
-                    .font(.system(size: 10, weight: .medium))
+                Text("打开 App 同步")
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(Paper.vermilion)
             } else if entry.boards.allSatisfy({ $0.markets.isEmpty }) {
                 Text("未来七日无圩")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Paper.inkSoft)
+            } else {
+                let total = entry.boards.reduce(0) { $0 + $1.markets.count }
+                Text("七日 \(total) 场")
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(Paper.inkSoft)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 8)
+        .padding(.top, 7)
     }
 }
 
@@ -339,7 +350,7 @@ private struct AlmanacRow: View {
                     )
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 
     private var namesLine: String {
