@@ -22,8 +22,8 @@ struct GanJiEntry: TimelineEntry {
         let cal = Calendar.current
         let start = cal.startOfDay(for: Date())
         let rules = [
-            MarketRule(id: "s1", name: "大妙圩", area: "桂平", repeatType: 6, repeatValue: ["卯"]),
-            MarketRule(id: "s2", name: "登明圩", area: "桂平", repeatType: 6, repeatValue: ["午"]),
+            MarketRule(id: "s1", name: "大妙圩", area: "桂平", repeatType: 6, repeatValue: ["兔"]),
+            MarketRule(id: "s2", name: "登明圩", area: "桂平", repeatType: 6, repeatValue: ["马"]),
             MarketRule(id: "s3", name: "石龙圩", area: "平南", repeatType: 1, repeatValue: ["初一", "十五"])
         ]
         let boards = (0..<7).compactMap { offset -> DayBoard? in
