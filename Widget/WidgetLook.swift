@@ -1,74 +1,64 @@
 import SwiftUI
 
-/// 纸与墨。
-///
-/// 之前用的淡朱砂大圆在真机上像一块污渍，纸色也偏灰，整体发闷。
-/// 这次只保留「上暖下沉的纸」+ 一点点右上角柔光，视觉重点交给字号与朱砂竖标。
-enum Paper {
-    static let cream = Color(red: 0.988, green: 0.980, blue: 0.957)
-    static let sand = Color(red: 0.949, green: 0.914, blue: 0.847)
-    static let ink = Color(red: 0.118, green: 0.102, blue: 0.082)
-    static let inkSoft = Color(red: 0.404, green: 0.365, blue: 0.310)
-    static let vermilion = Color(red: 0.745, green: 0.227, blue: 0.149)
-    static let jade = Color(red: 0.176, green: 0.353, blue: 0.302)
-    static let rule = Color(red: 0.843, green: 0.800, blue: 0.714)
+/// Apple 系统风配色，与 App 内 v119+ 的界面语言一致：
+/// 分组背景、白色圆角卡片、系统蓝、SF 字体。
+/// 旧纸墨配色已整体移除。
+enum Ink {
+    static let page = Color(uiColor: .systemGroupedBackground)
+    static let card = Color(uiColor: .secondarySystemGroupedBackground)
+    static let title = Color.primary
+    static let secondary = Color.secondary
+    static let tertiary = Color(uiColor: .tertiaryLabel)
+    static let blue = Color(red: 0.16, green: 0.43, blue: 0.94)
+    static let separator = Color(uiColor: .separator)
 }
 
-struct PaperSurface: View {
+struct WidgetSurface: View {
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Paper.cream, Paper.sand],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            // 极淡的暖光，柔和的径向渐变而不是硬边圆形。
-            GeometryReader { proxy in
-                RadialGradient(
-                    colors: [Paper.vermilion.opacity(0.06), Paper.vermilion.opacity(0)],
-                    center: UnitPoint(x: 0.92, y: 0.0),
-                    startRadius: 0,
-                    endRadius: proxy.size.width * 0.85
-                )
-            }
-        }
+        Ink.page
     }
 }
 
 extension View {
-    /// iOS 17 起用系统容器背景，系统会把它当成小组件真正的背景来渲染；
-    /// 更早的系统退回普通背景。
     @ViewBuilder
     func paperWidget() -> some View {
         if #available(iOS 17.0, *) {
-            containerBackground(for: .widget) { PaperSurface() }
+            containerBackground(for: .widget) { WidgetSurface() }
         } else {
-            background(PaperSurface())
+            background(WidgetSurface())
         }
     }
 }
 
-/// 朱砂竖标：所有版面的视觉锚点。
-struct VermilionTick: View {
-    var height: CGFloat = 10
+/// 白色圆角卡片，App 内列表卡的同款视觉。
+struct Card: View {
+    var corner: CGFloat = 14
+
+    init(corner: CGFloat = 14) {
+        self.corner = corner
+    }
 
     var body: some View {
-        Capsule()
-            .fill(Paper.vermilion)
-            .frame(width: 3, height: height)
+        RoundedRectangle(cornerRadius: corner, style: .continuous)
+            .fill(Ink.card)
     }
 }
 
-/// 栏目小字：字距拉开，像纸上的栏名。
+/// 蓝色小圆点，用于「今天」的强调，对应 App 里选中态的蓝。
+struct BlueDot: View {
+    var body: some View {
+        Circle().fill(Ink.blue)
+    }
+}
+
+/// 栏目小字。
 struct SectionLabel: View {
     let text: String
-    var size: CGFloat = 10
 
     var body: some View {
         Text(text)
-            .font(.system(size: size, weight: .heavy))
-            .tracking(1.5)
-            .foregroundStyle(Paper.inkSoft)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Ink.secondary)
             .lineLimit(1)
     }
 }
@@ -77,7 +67,7 @@ struct SectionLabel: View {
 struct HairLine: View {
     var body: some View {
         Rectangle()
-            .fill(Paper.rule)
-            .frame(height: 1)
+            .fill(Ink.separator)
+            .frame(height: 0.5)
     }
 }
