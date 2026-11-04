@@ -1,48 +1,11 @@
 import SwiftUI
 
-// 票根对切风：每个版面都是一张「撕开的票」。
-//   小号 = 单张票 —— 左存根（日期）｜右主票（圩名）
-//   中号 = 主票 + 三张票根联 —— 今天的票 + 明后天的存根联
-//   大号 = 整版票据 —— 一张大票 + 七张日票排成两行
+// 江南水墨风：画作为容器背景，文字浮在磨砂白卡上。
+//   小号 = 左今日右三日（仿参考图小号：日期区 + 今日开圩绿签）
+//   中号 = 三栏（仿参考图中号：今天/明天/后天 各带棚icon+开圩签）
+//   大号 = 左日期区 + 右三栏（仿参考图大号的左右分区）
 
-// MARK: - 票面通用组件
-
-/// 左存根：竖排日期数字，票据左半。
-struct StubDate: View {
-    let entry: GanJiEntry
-    var daySize: CGFloat = 30
-
-    var body: some View {
-        VStack(alignment: .center, spacing: 1) {
-            Text("\(Calendar.current.component(.month, from: entry.date))月")
-                .font(.system(size: 8, weight: .black))
-                .tracking(1)
-                .foregroundStyle(Ink.stamp)
-            Text("\(Calendar.current.component(.day, from: entry.date))")
-                .font(.system(size: daySize, weight: .black, design: .serif))
-                .foregroundStyle(Ink.title)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Text(LunarCalendar.weekdayText(entry.date))
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(Ink.secondary)
-        }
-    }
-}
-
-/// 打孔分隔：上下两个半圆缺口 + 中间一列孔点。
-struct Perforation: View {
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            PunchLine()
-            Spacer(minLength: 0)
-        }
-        .frame(width: 14)
-    }
-}
-
-// MARK: - 小号：单张票
+// MARK: - 小号
 
 struct SealBoard: View {
     let entry: GanJiEntry
@@ -50,64 +13,77 @@ struct SealBoard: View {
     private var today: [MarketRule] { entry.boards.first?.markets ?? [] }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                SectionLabel(text: "赶集历")
-                Spacer(minLength: 0)
-                Postmark(text: "圩", size: 22)
-                    .offset(y: -2)
-            }
-            .padding(.top, 11)
-            .padding(.horizontal, 12)
-
-            Spacer(minLength: 3)
-
-            HStack(spacing: 0) {
-                // 左：日期存根
-                StubDate(entry: entry)
-                    .frame(width: 58)
-
-                Perforation()
-
-                // 右：圩名主票
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(mainTitle)
-                        .font(.system(size: 17, weight: .black, design: .serif))
-                        .foregroundStyle(Ink.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
-                    Text(mainDetail)
-                        .font(.system(size: 8.5, weight: .semibold))
-                        .tracking(0.5)
-                        .foregroundStyle(Ink.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+        VStack(spacing: 7) {
+            Spacer(minLength: 2)
+            // 日期区
+            VStack(spacing: 1) {
+                Text(LunarCalendar.weekdayText(entry.date))
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(Ink.title)
+                Text(dateText)
+                    .font(.system(size: 21, weight: .heavy))
+                    .foregroundStyle(Ink.title)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                // 云纹分隔：简化为一条带端点的细线
+                HStack(spacing: 3) {
+                    Circle().fill(Ink.secondary.opacity(0.5)).frame(width: 2.5, height: 2.5)
+                    Rectangle().fill(Ink.secondary.opacity(0.4)).frame(width: 44, height: 0.8)
+                    Circle().fill(Ink.secondary.opacity(0.5)).frame(width: 2.5, height: 2.5)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 8)
-                .padding(.trailing, 10)
             }
-            .frame(maxHeight: .infinity)
 
-            Spacer(minLength: 3)
+            // 今日状态卡
+            HStack(spacing: 6) {
+                StallIcon(size: 17, open: !today.isEmpty)
+                Text(today.isEmpty ? "今日休圩" : "今日开圩")
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(today.isEmpty ? Ink.secondary : Ink.greenDeep)
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 7)
+            .background(GlassCard(strong: true, radius: 15))
 
-            TornEdge()
-                .padding(.bottom, 6)
+            // 农历行
+            HStack(spacing: 5) {
+                SealMark(size: 13)
+                Text("农历" + LunarCalendar.lunarText(entry.date))
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Ink.title)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(GlassCard(radius: 9))
+
+            if let first = today.first {
+                Text(first.name)
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(Ink.greenDeep)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .background(GlassCard(radius: 8))
+            } else if let next = nextMarketDay() {
+                Text("\(next.label)·\(next.name)")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(Ink.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .background(GlassCard(radius: 8))
+            }
+
+            Spacer(minLength: 2)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 13)
     }
 
-    private var mainTitle: String {
-        if let first = today.first { return first.name }
-        if let next = nextMarketDay() { return next.name }
-        return "七日无圩"
-    }
-
-    private var mainDetail: String {
-        if today.isEmpty {
-            if let next = nextMarketDay() { return "今日休 · \(next.label)开" }
-            return "今日休"
-        }
-        return today.count == 1 ? "今日开圩" : "今日开圩 · \(today.count) 场"
+    private var dateText: String {
+        let c = Calendar.current.dateComponents([.month, .day], from: entry.date)
+        return "\(c.month ?? 1)月\(c.day ?? 1)日"
     }
 
     private func nextMarketDay() -> (label: String, name: String)? {
@@ -123,297 +99,230 @@ struct SealBoard: View {
     }
 }
 
-// MARK: - 中号：主票 + 存根联
+// MARK: - 中号：今天 / 明天 / 后天 三栏
 
 struct StripBoard: View {
+    let entry: GanJiEntry
+
+    var body: some View {
+        HStack(spacing: 0) {
+            dayColumn(entry.boards[0], label: "今天")
+            divider
+            dayColumn(entry.boards.count > 1 ? entry.boards[1] : nil, label: "明天")
+            divider
+            dayColumn(entry.boards.count > 2 ? entry.boards[2] : nil, label: "后天")
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 6)
+    }
+
+    private var divider: some View {
+        VStack(spacing: 2) {
+            Rectangle()
+                .fill(Ink.secondary.opacity(0.55))
+                .frame(width: 1, height: 8)
+            Circle()
+                .strokeBorder(Ink.secondary.opacity(0.55), lineWidth: 1)
+                .frame(width: 4, height: 4)
+            Rectangle()
+                .fill(Ink.secondary.opacity(0.55))
+                .frame(width: 1, height: 8)
+        }
+        .frame(width: 13)
+    }
+
+    @ViewBuilder
+    private func dayColumn(_ board: DayBoard?, label: String) -> some View {
+        VStack(spacing: 5) {
+            Text(label)
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 3.5)
+                .background(
+                    Capsule().fill(board?.markets.isEmpty == false
+                        ? Ink.green
+                        : Color(red: 0.45, green: 0.48, blue: 0.47))
+                )
+            if let board {
+                Text(shortDate(board.date))
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(Ink.title)
+                StallIcon(size: 22, open: !board.markets.isEmpty)
+                GreenBadge(
+                    text: board.markets.isEmpty ? "不开圩" : "开圩",
+                    isOpen: !board.markets.isEmpty
+                )
+                if !board.markets.isEmpty {
+                    Text(board.markets.prefix(2).map(\.name).joined(separator: " "))
+                        .font(.system(size: 9, weight: .heavy))
+                        .foregroundStyle(Ink.greenDeep)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.horizontal, 6)
+                }
+            } else {
+                Text("—")
+                    .font(.system(size: 12, weight: .heavy))
+                    .foregroundStyle(Ink.tertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.month, .day], from: date)
+        return "\(c.month ?? 1)月\(c.day ?? 1)日"
+    }
+}
+
+// MARK: - 大号：左日期 + 右三栏
+
+struct AlmanacBoard: View {
     let entry: GanJiEntry
 
     private var today: [MarketRule] { entry.boards.first?.markets ?? [] }
 
     var body: some View {
         HStack(spacing: 0) {
-            // 主票：今天
-            VStack(spacing: 0) {
-                HStack {
-                    SectionLabel(text: "今日")
-                    Spacer(minLength: 0)
-                    Postmark(text: "圩", size: 24)
-                        .offset(x: 4, y: -2)
-                }
-                .padding(.top, 11)
-                .padding(.leading, 12)
-
+            // 左：日期区（仿参考图：星期 + 大日期 + 云纹 + 今日卡 + 农历）
+            VStack(spacing: 7) {
                 Spacer(minLength: 0)
-
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text("\(Calendar.current.component(.day, from: entry.date))")
-                        .font(.system(size: 34, weight: .black, design: .serif))
-                        .foregroundStyle(Ink.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text(LunarCalendar.weekdayText(entry.date))
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Ink.secondary)
-                }
-                .padding(.leading, 12)
-
-                Text(mainLine)
-                    .font(.system(size: 12, weight: .black, design: .serif))
-                    .foregroundStyle(today.isEmpty ? Ink.secondary : Ink.stamp)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 3)
-
-                Spacer(minLength: 0)
-
-                TornEdge()
-                    .padding(.bottom, 6)
-                    .padding(.trailing, 8)
-            }
-            .frame(width: 150)
-
-            // 撕开
-            Perforation()
-
-            // 右侧：三张存根联（明天/后天/大后天）
-            VStack(alignment: .leading, spacing: 0) {
-                SectionLabel(text: "存根")
-                    .padding(.top, 11)
-                    .padding(.leading, 9)
-                let stubs = Array(entry.boards.dropFirst().prefix(3))
-                ForEach(Array(stubs.enumerated()), id: \.offset) { index, board in
-                    StubRow(board: board)
-                    if index < stubs.count - 1 {
-                        HairLine().padding(.vertical, 3).padding(.leading, 9)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var mainLine: String {
-        if let first = today.first {
-            return today.count == 1 ? first.name : "\(first.name) 等\(today.count)场"
-        }
-        if let next = nextMarketDay() { return "\(next.label) · \(next.name)" }
-        return "七日无圩"
-    }
-
-    private func nextMarketDay() -> (label: String, name: String)? {
-        for board in entry.boards.dropFirst() where !board.markets.isEmpty {
-            let offset = Calendar.current.dateComponents(
-                [.day], from: Calendar.current.startOfDay(for: entry.date),
-                to: Calendar.current.startOfDay(for: board.date)
-            ).day ?? 0
-            let label = offset == 1 ? "明天" : LunarCalendar.weekdayText(board.date)
-            return (label, board.markets[0].name)
-        }
-        return nil
-    }
-}
-
-/// 存根联一行：日期小票根 + 圩名。
-private struct StubRow: View {
-    let board: DayBoard
-
-    private var label: String {
-        let offset = Calendar.current.dateComponents(
-            [.day], from: Calendar.current.startOfDay(for: Date()),
-            to: Calendar.current.startOfDay(for: board.date)
-        ).day ?? 0
-        return offset == 1 ? "明" : (offset == 2 ? "后" : LunarCalendar.weekdayText(board.date))
-    }
-
-    var body: some View {
-        HStack(spacing: 7) {
-            Text(label)
-                .font(.system(size: 9, weight: .black))
-                .foregroundStyle(board.markets.isEmpty ? Ink.tertiary : Ink.stamp)
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(Ink.paperDeep))
-            if board.markets.isEmpty {
-                Text("休")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Ink.tertiary)
-            } else {
-                Text(board.markets.prefix(2).map(\.name).joined(separator: " "))
-                    .font(.system(size: 11.5, weight: .bold, design: .serif))
+                Text(LunarCalendar.weekdayText(entry.date))
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(Ink.title)
+                Text(dateText)
+                    .font(.system(size: 30, weight: .heavy))
                     .foregroundStyle(Ink.title)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.top, 6)
-        .padding(.leading, 9)
-        .padding(.trailing, 6)
-    }
-}
-
-// MARK: - 大号：整版票据
-
-struct AlmanacBoard: View {
-    let entry: GanJiEntry
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // 顶部：票头
-            HStack(alignment: .center) {
-                SectionLabel(text: "赶集历 · 七日券")
-                Spacer(minLength: 0)
-                Text("No. \(Calendar.current.component(.day, from: entry.date))")
-                    .font(.system(size: 9, weight: .black, design: .serif))
-                    .foregroundStyle(Ink.stamp)
-            }
-            .padding(.top, 12)
-            .padding(.horizontal, 14)
-            .padding(.bottom, 4)
-
-            // 主票：今天
-            HStack(spacing: 0) {
-                StubDate(entry: entry, daySize: 26)
-                    .frame(width: 46)
-                Perforation()
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(mainTitle)
-                        .font(.system(size: 16, weight: .black, design: .serif))
+                    .minimumScaleFactor(0.7)
+                HStack(spacing: 3) {
+                    Circle().fill(Ink.secondary.opacity(0.5)).frame(width: 2.5, height: 2.5)
+                    Rectangle().fill(Ink.secondary.opacity(0.4)).frame(width: 54, height: 0.8)
+                    Circle().fill(Ink.secondary.opacity(0.5)).frame(width: 2.5, height: 2.5)
+                }
+                HStack(spacing: 6) {
+                    StallIcon(size: 19, open: !today.isEmpty)
+                    Text(today.isEmpty ? "今日休圩" : "今日开圩")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundStyle(today.isEmpty ? Ink.secondary : Ink.greenDeep)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(GlassCard(strong: true, radius: 16))
+                HStack(spacing: 5) {
+                    SealMark(size: 13)
+                    Text("农历" + LunarCalendar.lunarText(entry.date))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(Ink.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text(mainDetail)
-                        .font(.system(size: 8.5, weight: .semibold))
-                        .tracking(0.5)
-                        .foregroundStyle(Ink.secondary)
-                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 9)
-                .padding(.trailing, 10)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(GlassCard(radius: 9))
+                if let first = today.first {
+                    Text(first.name)
+                        .font(.system(size: 10, weight: .heavy))
+                        .foregroundStyle(Ink.greenDeep)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(GlassCard(radius: 8))
+                }
+                Spacer(minLength: 0)
             }
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Ink.paperDeep.opacity(0.6))
-            )
-            .padding(.horizontal, 12)
+            .frame(width: 148)
 
-            // 撕孔分隔
-            HStack(spacing: 3) {
-                ForEach(0..<40, id: \.self) { _ in
-                    Circle().fill(Ink.punch).frame(width: 3, height: 3)
+            // 中缝云纹分隔
+            VStack(spacing: 2) {
+                Rectangle()
+                    .fill(Ink.secondary.opacity(0.5))
+                    .frame(width: 1, height: 10)
+                Circle()
+                    .strokeBorder(Ink.secondary.opacity(0.5), lineWidth: 1)
+                    .frame(width: 5, height: 5)
+                Rectangle()
+                    .fill(Ink.secondary.opacity(0.5))
+                    .frame(width: 1, height: 10)
+            }
+            .frame(width: 15)
+
+            // 右：未来三天赶集安排
+            VStack(spacing: 6) {
+                // 题签
+                Text("未来三天赶集安排")
+                    .font(.system(size: 10, weight: .heavy))
+                    .tracking(1)
+                    .foregroundStyle(Ink.title)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(GlassCard(strong: true, radius: 7))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder(Ink.secondary.opacity(0.45), lineWidth: 0.8)
+                    )
+
+                HStack(spacing: 0) {
+                    planColumn(entry.boards[0], label: "今天")
+                    miniDivider
+                    planColumn(entry.boards.count > 1 ? entry.boards[1] : nil, label: "明天")
+                    miniDivider
+                    planColumn(entry.boards.count > 2 ? entry.boards[2] : nil, label: "后天")
                 }
+                .frame(maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 7)
-
-            // 七张日票：两行（4 + 3）
-            let boards = Array(entry.boards.prefix(7))
-            VStack(spacing: 7) {
-                HStack(spacing: 7) {
-                    ForEach(boards.prefix(4)) { board in
-                        DayTicket(board: board, isToday: Calendar.current.isDateInToday(board.date))
-                    }
-                }
-                if boards.count > 4 {
-                    HStack(spacing: 7) {
-                        ForEach(boards.dropFirst(4)) { board in
-                            DayTicket(board: board, isToday: Calendar.current.isDateInToday(board.date))
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-
-            Spacer(minLength: 0)
+            .padding(.leading, 6)
+            .padding(.trailing, 10)
+            .padding(.vertical, 10)
         }
+        .padding(.vertical, 10)
+        .padding(.leading, 12)
     }
 
-    private var mainTitle: String {
-        let today = entry.boards.first?.markets ?? []
-        if let first = today.first { return first.name }
-        if let next = nextMarketDay() { return next.name }
-        return "七日无圩"
+    private var miniDivider: some View {
+        Rectangle()
+            .fill(Ink.secondary.opacity(0.35))
+            .frame(width: 0.8, height: 64)
+            .frame(maxHeight: .infinity)
     }
 
-    private var mainDetail: String {
-        let today = entry.boards.first?.markets ?? []
-        if today.isEmpty {
-            if let next = nextMarketDay() { return "今日休 · \(next.label)开" }
-            return "今日休"
-        }
-        return today.count == 1 ? "今日开圩" : "今日开圩 · \(today.count) 场"
-    }
-
-    private func nextMarketDay() -> (label: String, name: String)? {
-        for board in entry.boards.dropFirst() where !board.markets.isEmpty {
-            let offset = Calendar.current.dateComponents(
-                [.day], from: Calendar.current.startOfDay(for: entry.date),
-                to: Calendar.current.startOfDay(for: board.date)
-            ).day ?? 0
-            let label = offset == 1 ? "明天" : LunarCalendar.weekdayText(board.date)
-            return (label, board.markets[0].name)
-        }
-        return nil
-    }
-}
-
-/// 一张「日票」：小方票，日期 + 圩名缩写 + 开圩印记。
-private struct DayTicket: View {
-    let board: DayBoard
-    let isToday: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 3) {
-                Text("\(Calendar.current.component(.day, from: board.date))")
-                    .font(.system(size: 14, weight: .black, design: .serif))
-                    .foregroundStyle(board.markets.isEmpty ? Ink.tertiary : Ink.title)
-                    .lineLimit(1)
-                Text(weekday)
-                    .font(.system(size: 7.5, weight: .bold))
+    @ViewBuilder
+    private func planColumn(_ board: DayBoard?, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(Ink.title)
+            if let board {
+                Text(shortDate(board.date))
+                    .font(.system(size: 10, weight: .heavy))
                     .foregroundStyle(Ink.secondary)
-            }
-            if board.markets.isEmpty {
-                Text("休")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(Ink.tertiary)
-            } else {
-                Text(board.markets.prefix(2).map(\.name).joined(separator: " "))
-                    .font(.system(size: 9.5, weight: .black, design: .serif))
-                    .foregroundStyle(isToday ? Ink.stamp : Ink.title)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-            }
-            Spacer(minLength: 0)
-            // 票根上的小孔印记：开圩日打孔，休市日是实心灰
-            HStack(spacing: 2) {
-                ForEach(0..<3, id: \.self) { _ in
-                    Circle()
-                        .fill(board.markets.isEmpty ? Ink.tertiary.opacity(0.4) : Ink.stamp.opacity(0.75))
-                        .frame(width: 2.5, height: 2.5)
+                StallIcon(size: 19, open: !board.markets.isEmpty)
+                GreenBadge(
+                    text: board.markets.isEmpty ? "不开圩" : "开圩",
+                    isOpen: !board.markets.isEmpty,
+                    size: 11
+                )
+                if !board.markets.isEmpty {
+                    Text(board.markets.first?.name ?? "")
+                        .font(.system(size: 8.5, weight: .heavy))
+                        .foregroundStyle(Ink.greenDeep)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .padding(.horizontal, 4)
                 }
             }
         }
-        .padding(7)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Ink.paperDeep.opacity(0.55))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(isToday ? Ink.stamp.opacity(0.7) : Color.clear,
-                                      lineWidth: isToday ? 1.2 : 0)
-                )
-        )
+        .frame(maxWidth: .infinity)
     }
 
-    private var weekday: String {
-        let names = ["日", "一", "二", "三", "四", "五", "六"]
-        let idx = Calendar.current.component(.weekday, from: board.date) - 1
-        return names[min(max(idx, 0), 6)]
+    private var dateText: String {
+        let c = Calendar.current.dateComponents([.month, .day], from: entry.date)
+        return "\(c.month ?? 1)月\(c.day ?? 1)日"
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.month, .day], from: date)
+        return "\(c.month ?? 1)月\(c.day ?? 1)日"
     }
 }

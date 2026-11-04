@@ -21,45 +21,37 @@ struct GanJiBoardView: View {
     }
 }
 
-/// 空状态：一张「作废票」，KEEP 字样斜盖，票据语言收尾。
+/// 空状态：同样浮在水墨画上，白卡说明。
 private struct EmptyBoard: View {
     let entry: GanJiEntry
 
-    private var subtitle: String { entry.synced ? "空白票" : "尚未同步" }
-    private var title: String { entry.synced ? "去收藏圩点" : "打开赶集日记" }
+    private var title: String { entry.synced ? "还没有收藏" : "尚未同步" }
+    private var detail: String {
+        entry.synced ? "点心形收藏圩点，开圩就会出现在这里"
+                     : "打开「赶集日记」选一次地区即可同步"
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                SectionLabel(text: "赶集历")
-                Spacer(minLength: 0)
-                Postmark(text: "空", size: 22)
-                    .offset(y: -2)
-            }
-            .padding(.top, 11)
-            .padding(.horizontal, 12)
-
+        VStack(spacing: 8) {
             Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(subtitle)
-                    .font(.system(size: 9, weight: .black))
-                    .tracking(1.2)
-                    .foregroundStyle(Ink.tertiary)
-                Text(title)
-                    .font(.system(size: 16, weight: .black, design: .serif))
-                    .foregroundStyle(Ink.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-
+            Text(title)
+                .font(.system(size: 14, weight: .heavy))
+                .foregroundStyle(Ink.title)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(GlassCard(strong: true, radius: 13))
+            Text(detail)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Ink.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(GlassCard(radius: 10))
             Spacer(minLength: 0)
-
-            TornEdge()
-                .padding(.bottom, 6)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(14)
     }
 }
 
@@ -73,7 +65,7 @@ struct GanJiWidget: Widget {
         }
         .contentMarginsDisabled()
         .configurationDisplayName("赶集历")
-        .description("只显示你收藏的圩点，今日与未来七日的开圩安排")
+        .description("只显示你收藏的圩点，今日与未来三日的开圩安排")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
