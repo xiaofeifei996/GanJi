@@ -1,12 +1,14 @@
 name: Build GanJi
 on:
   push:
-    branches: [ main ]
+    branches: [ main, fix/ios26-widget-image-background ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -83,31 +85,28 @@ jobs:
           tail -n 50 build.log
           exit "$status"
 
-      - name: Embed App Group entitlements for TrollStore
+      - name: Sign app and widget extension
         run: |
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
-          WIDGET="$APP/PlugIns/GanJiWidget.appex"
+          EXTENSION="$APP/PlugIns/GanJiWidget.appex"
           test -d "$APP"
-          test -d "$WIDGET"
-          # The normal build deliberately disables Xcode signing. Without an explicit
-          # ad-hoc signature, CODE_SIGN_ENTITLEMENTS are not embedded in the app/widget,
-          # so TrollStore-installed builds may not get the shared App Group container.
+          test -d "$EXTENSION"
+
+          # Nested code first: the extension carries its own App Group entitlement.
+          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$EXTENSION"
+          codesign -d --entitlements :- "$EXTENSION" 2>&1
+
+          # Then the containing app, once all nested code is final.
           codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
-          codesign --force --sign - --timestamp=none --entitlements Widget/GanJiWidget.entitlements "$WIDGET"
-          echo "===== App entitlements ====="
-          codesign -d --entitlements :- "$APP" 2>&1 || true
-          echo "===== Widget entitlements ====="
-          codesign -d --entitlements :- "$WIDGET" 2>&1 || true
+          codesign -d --entitlements :- "$APP" 2>&1
 
       - name: Package IPA
         run: |
           set -e
           APP="build/Build/Products/Release-iphoneos/GanJi.app"
           ls -la "$APP"
-          ls -la "$APP/PlugIns" || true
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/PlugIns/GanJiWidget.appex/Info.plist"
           rm -rf Payload && mkdir -p Payload
           cp -R "$APP" Payload/
           zip -qry GanJi-unsigned.ipa Payload
@@ -118,3 +117,14 @@ jobs:
         with:
           name: GanJi-ipa
           path: GanJi-unsigned.ipa
+
+      - name: Publish nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release delete nightly --yes --cleanup-tag >/dev/null 2>&1 || true
+          gh release create nightly GanJi-unsigned.ipa \
+            --prerelease \
+            --title "赶集日记 · 自动构建" \
+            --notes "自动构建，提交 ${{ github.sha }}，运行 #${{ github.run_number }}"

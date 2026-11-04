@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>赶集历 · 小组件设计预览</title>
+<style>
+  :root{
+    --cream:#fbf6ec; --sand:#f1e7d2; --ink:#292624; --inksoft:#706a5d;
+    --verm:#c2422e; --jade:#385c5c; --rule:#9a8b6e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#22201e;font-family:-apple-system,"PingFang SC",sans-serif;padding:34px 20px 60px;color:#e8e2d6}
+  h1{font-size:15px;font-weight:600;letter-spacing:.06em;color:#8d8578;margin-bottom:26px;text-align:center}
+  .row{display:flex;flex-wrap:wrap;gap:26px;justify-content:center;align-items:flex-start;margin-bottom:38px}
+  .wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .cap{font-size:11px;color:#8d8578;letter-spacing:.1em}
+  .paper{background:linear-gradient(135deg,var(--cream),var(--sand));border-radius:22px;
+    position:relative;overflow:hidden;color:var(--ink);
+    box-shadow:0 14px 34px rgba(0,0,0,.5)}
+  .paper::after{content:"";position:absolute;width:92%;padding-bottom:92%;border-radius:50%;
+    background:rgba(194,66,46,.055);right:-18%;top:-46%}
+  .pad{position:relative;z-index:1;padding:14px;height:100%;display:flex;flex-direction:column}
+  .lbl{font-size:10px;font-weight:800;letter-spacing:.16em;color:var(--inksoft)}
+  .hair{height:1px;background:rgba(154,139,110,.38)}
+
+  /* 小号 158x158 */
+  .small{width:158px;height:158px}
+  .seal{width:54px;height:54px;border-radius:9px;display:flex;align-items:center;
+    justify-content:center;color:var(--cream);font-size:32px;font-weight:900;
+    font-family:Georgia,serif;line-height:1;flex:none}
+  .seal.on{background:var(--verm)}
+  .seal.off{background:rgba(112,106,93,.55)}
+
+  /* 中号 338x158 */
+  .medium{width:338px;height:158px}
+  .strip{display:flex;width:100%}
+  .scol{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+  .sdot{width:5px;height:5px;border-radius:50%;display:block}
+  .sdot.ring{border:1px solid rgba(154,139,110,.5);background:none}
+  .sdot.on{background:var(--jade)}
+  .sdot.today{background:var(--verm)}
+
+  /* 大号 338x354 */
+  .large{width:338px;height:354px}
+  .arow{display:flex;align-items:center;gap:8px;padding:6px 0}
+  .anum{width:24px;text-align:right;font-family:Georgia,serif;font-size:17px;font-weight:600;
+    color:var(--ink);flex:none}
+  .anum.dim{color:rgba(112,106,93,.6)}
+  .ameta{width:34px;flex:none}
+  .abadge{min-width:18px;padding:2px 0;text-align:center;border-radius:4px;
+    background:var(--jade);color:var(--cream);font-size:11px;font-weight:700;font-family:Georgia,serif}
+  .abadge.today{background:var(--verm)}
+  .adiv{height:1px;background:rgba(154,139,110,.22);margin-left:34px}
+</style>
+</head>
+<body>
+<h1>赶集历 · 三种尺寸版面</h1>
+
+<div class="row">
+  <!-- 小号 -->
+  <div class="wrap">
+    <div class="paper small">
+      <div class="pad">
+        <div style="display:flex;gap:5px;align-items:baseline">
+          <span class="lbl">今日</span>
+          <span style="font-size:10px;font-weight:600;color:var(--inksoft)">周二</span>
+        </div>
+        <div style="flex:1"></div>
+        <div style="display:flex;gap:9px;align-items:flex-start">
+          <div class="seal on">3</div>
+          <div style="padding-top:2px">
+            <div style="font-size:11px;font-weight:600">九月十四</div>
+            <div style="font-size:10px;color:var(--inksoft);margin-top:3px">甲辰日</div>
+          </div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="hair"></div>
+        <div style="flex:1"></div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="display:flex;gap:4px;align-items:center">
+            <span style="width:4px;height:4px;border-radius:50%;background:var(--verm)"></span>
+            <span style="font-size:13px;font-weight:700">大妙圩</span>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span style="width:4px;height:4px;border-radius:50%;background:rgba(194,66,46,.4)"></span>
+            <span style="font-size:11px;color:var(--inksoft)">登明圩</span>
+          </div>
+          <div style="font-size:9px;color:rgba(112,106,93,.8);padding-left:8px">另有 1 处</div>
+        </div>
+      </div>
+    </div>
+    <div class="cap">小号 · 印章</div>
+  </div>
+
+  <!-- 中号 -->
+  <div class="wrap">
+    <div class="paper medium">
+      <div class="pad">
+        <div style="display:flex;align-items:baseline;margin-bottom:9px">
+          <span style="font-size:12px;font-weight:800">桂平市</span>
+          <div style="flex:1"></div>
+          <span class="lbl">未来七日</span>
+        </div>
+        <div class="strip">
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--verm)">周二</div><div style="font-size:15px;font-weight:900;font-family:Georgia,serif">3</div><span class="sdot today"></span></div>
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周三</div><div style="font-size:15px;font-weight:600;font-family:Georgia,serif">4</div><span class="sdot ring"></span></div>
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周四</div><div style="font-size:15px;font-weight:600;font-family:Georgia,serif">5</div><span class="sdot on"></span></div>
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周五</div><div style="font-size:15px;font-weight:600;font-family:Georgia,serif">6</div><span class="sdot on"></span></div>
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周六</div><div style="font-size:15px;font-weight:600;font-family:Georgia,serif">7</div><span class="sdot ring"></span></div>
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周日</div><div style="font-size:15px;font-weight:600;font-family:Georgia,serif">8</div><span class="sdot on"></span></div>
+          <div class="scol"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周一</div><div style="font-size:15px;font-weight:600;font-family:Georgia,serif">9</div><span class="sdot ring"></span></div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="hair"></div>
+        <div style="flex:1"></div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <span style="width:3px;height:12px;background:var(--verm)"></span>
+          <span style="font-size:11px">大妙圩 · 登明圩 · 石龙圩 等 4 处</span>
+        </div>
+      </div>
+    </div>
+    <div class="cap">中号 · 刻度带</div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- 大号 -->
+  <div class="wrap">
+    <div class="paper large">
+      <div class="pad">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-size:15px;font-weight:800;font-family:Georgia,serif">11月3日 · 周二</span>
+          <span class="lbl">桂平市</span>
+          <div style="flex:1"></div>
+          <span style="font-size:10px;color:var(--inksoft)">甲辰 · 九月十四</span>
+        </div>
+        <div class="hair" style="margin:10px 0"></div>
+
+        <div class="arow">
+          <span class="anum">3</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--verm)">周二</div><div style="font-size:8px;color:var(--inksoft)">甲辰</div></div>
+          <div style="flex:1"><div style="font-size:12px;font-weight:700">大妙圩 · 登明圩</div><div style="font-size:9px;color:var(--inksoft);margin-top:2px">兔 / 马</div></div>
+          <span class="abadge today">2</span>
+        </div>
+        <div class="adiv"></div>
+
+        <div class="arow">
+          <span class="anum dim">4</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周三</div><div style="font-size:8px;color:var(--inksoft)">乙巳</div></div>
+          <span style="font-size:11px;color:rgba(112,106,93,.7)">休市</span>
+        </div>
+        <div class="adiv"></div>
+
+        <div class="arow">
+          <span class="anum">5</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周四</div><div style="font-size:8px;color:var(--inksoft)">丙午</div></div>
+          <div style="flex:1"><div style="font-size:12px">石龙圩 · 罗秀圩</div><div style="font-size:9px;color:var(--inksoft);margin-top:2px">农历初一 · 十五</div></div>
+          <span class="abadge">2</span>
+        </div>
+        <div class="adiv"></div>
+
+        <div class="arow">
+          <span class="anum">6</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周五</div><div style="font-size:8px;color:var(--inksoft)">丁未</div></div>
+          <div style="flex:1"><div style="font-size:12px">木乐圩</div><div style="font-size:9px;color:var(--inksoft);margin-top:2px">鼠</div></div>
+          <span class="abadge">1</span>
+        </div>
+        <div class="adiv"></div>
+
+        <div class="arow">
+          <span class="anum dim">7</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周六</div><div style="font-size:8px;color:var(--inksoft)">戊申</div></div>
+          <span style="font-size:11px;color:rgba(112,106,93,.7)">休市</span>
+        </div>
+        <div class="adiv"></div>
+
+        <div class="arow">
+          <span class="anum">8</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周日</div><div style="font-size:8px;color:var(--inksoft)">己酉</div></div>
+          <div style="flex:1"><div style="font-size:12px">大妙圩 · 江口圩 · 蒙圩</div><div style="font-size:9px;color:var(--inksoft);margin-top:2px">兔 / 马 / 牛</div></div>
+          <span class="abadge">3</span>
+        </div>
+        <div class="adiv"></div>
+
+        <div class="arow">
+          <span class="anum dim">9</span>
+          <div class="ameta"><div style="font-size:9px;font-weight:600;color:var(--inksoft)">周一</div><div style="font-size:8px;color:var(--inksoft)">庚戌</div></div>
+          <span style="font-size:11px;color:rgba(112,106,93,.7)">休市</span>
+        </div>
+        <div style="flex:1"></div>
+      </div>
+    </div>
+    <div class="cap">大号 · 历书页</div>
+  </div>
+</div>
+</body>
+</html>
