@@ -21,6 +21,20 @@ import Foundation
             ))
         }
 
+        // Widget names are presentation-only; existing saved snapshots need no migration.
+        for (input, expected) in [("贵港市桂平市罗秀镇", "罗秀圩"),
+                                  ("六陈镇", "六陈圩"), ("麻垌镇", "麻垌圩"),
+                                  ("大秒村", "大秒圩"), ("大妙村", "大妙圩"),
+                                  ("六陈圩", "六陈圩"), ("某县三江口镇", "江口圩"),
+                                  (" 罗秀镇 ", "罗秀圩"), ("镇", "镇"),
+                                  ("西村", "西村"), ("中心市场", "中心市场"), ("", "")] {
+            let rule = MarketRule(id: "name-test", name: input, area: "测试区", repeatType: 6, repeatValue: ["兔"])
+            expect(rule.widgetDisplayName == expected, "Widget name conversion: \(input)")
+            let restored = try JSONDecoder().decode(MarketRule.self, from: JSONEncoder().encode(rule))
+            expect(restored.name == input && restored.id == rule.id && restored.repeatValue == rule.repeatValue,
+                   "Display formatting must preserve saved identity, original name and schedule")
+        }
+
         // Candidate order models App Group file, fallback file, then defaults.
         let primary = try snapshot(100, id: "primary")
         let fallback = try snapshot(200, id: "fallback")

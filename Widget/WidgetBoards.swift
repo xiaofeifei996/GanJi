@@ -6,12 +6,12 @@ private enum CalendarCopy {
     static func date(_ date: Date) -> String { "\(month(date))\(day(date))日" }
     static func names(_ markets: [MarketRule], limit: Int = 2) -> String {
         guard !markets.isEmpty else { return "收藏的圩点今日休圩" }
-        let text = markets.prefix(limit).map(\.name).joined(separator: " · ")
+        let text = markets.prefix(limit).map(\.widgetDisplayName).joined(separator: " · ")
         return markets.count > limit ? text + " 等\(markets.count)处" : text
     }
     static func accessibility(_ board: DayBoard, label: String) -> String {
         "\(label)，\(date(board.date))，\(LunarCalendar.weekdayText(board.date))，" +
-        (board.markets.isEmpty ? "收藏的圩点休圩" : "开圩：" + board.markets.map(\.name).joined(separator: "、"))
+        (board.markets.isEmpty ? "收藏的圩点休圩" : "开圩：" + board.markets.map(\.widgetDisplayName).joined(separator: "、"))
     }
 }
 
@@ -46,7 +46,7 @@ struct SealBoard: View {
     private var summary: String {
         if !entry.today.isEmpty { return CalendarCopy.names(entry.today, limit: 1) }
         if let next = entry.boards.dropFirst().first(where: { !$0.markets.isEmpty }) {
-            return "\(CalendarCopy.date(next.date)) · \(next.markets.first?.name ?? "")"
+            return "\(CalendarCopy.date(next.date)) · \(next.markets.first?.widgetDisplayName ?? "")"
         }
         return "未来七天暂无安排"
     }

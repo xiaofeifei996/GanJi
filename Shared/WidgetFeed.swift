@@ -9,6 +9,15 @@ struct MarketRule: Codable, Hashable {
     let repeatType: Int
     let repeatValue: [String]
 
+    /// 仅用于小组件显示；不改变原始名称、收藏标识或排期规则。
+    var widgetDisplayName: String {
+        let text = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let suffix = text.last, suffix == "镇" || suffix == "村" else { return text }
+        let stem = text.dropLast().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard stem.count >= 2 else { return text }
+        return String(stem.suffix(2)) + "圩"
+    }
+
     /// 圩期规则是否可判定。false 表示 App 里也只会显示「圩期待核实」，
     /// 小组件因此不把它算进任何一天的开圩列表。
     var isResolved: Bool {
