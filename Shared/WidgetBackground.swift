@@ -315,6 +315,12 @@ struct WidgetBackgroundStore {
               CGImageSourceGetStatus(source) == .statusComplete,
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let dimensions = dimensions(properties) else { throw StoreError.invalidImage }
+        // ImageIO can recover a partial JPEG and still report the source as complete.
+        // Require the JPEG end marker before allowing it to replace a saved background.
+        if CGImageSourceGetType(source) as String? == "public.jpeg",
+           data.range(of: Data([0xff, 0xd9]), options: .backwards) == nil {
+            throw StoreError.invalidImage
+        }
         try validateInputDimensions(width: dimensions.width, height: dimensions.height)
         let orientation = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
         guard (1...8).contains(orientation) else { throw StoreError.invalidImage }
