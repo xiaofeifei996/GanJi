@@ -36,15 +36,15 @@ struct SealBoard: View {
                     .font(.system(size: 10, weight: .semibold))
             }
             Text(summary)
-                .font(.system(size: 13, weight: .semibold)).lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .padding(15).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibility)
     }
     private var summary: String {
-        if !entry.today.isEmpty { return CalendarCopy.names(entry.today) }
+        if !entry.today.isEmpty { return CalendarCopy.names(entry.today, limit: 1) }
         if let next = entry.boards.dropFirst().first(where: { !$0.markets.isEmpty }) {
             return "\(CalendarCopy.date(next.date)) · \(next.markets.first?.name ?? "")"
         }
@@ -73,8 +73,9 @@ struct StripBoard: View {
                     Spacer(minLength: 2)
                     Text(entry.today.isEmpty ? "今日休圩" : "今日开圩")
                         .font(.system(size: 10, weight: .medium)).opacity(0.8)
-                    Text(CalendarCopy.names(entry.today))
-                        .font(.system(size: 14, weight: .semibold)).lineLimit(2)
+                    Text(CalendarCopy.names(entry.today, limit: 1))
+                        .font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .frame(width: max(100, (geometry.size.width - 46) * 0.49), alignment: .leading)
                 .accessibilityElement(children: .ignore)
