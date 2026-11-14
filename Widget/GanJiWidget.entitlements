@@ -6,5 +6,9 @@
     <array>
         <string>group.com.ganji.diary</string>
     </array>
+    <key>com.apple.security.exception.files.absolute-path.read-write</key>
+    <array>
+        <string>/var/mobile/Library/GanJi/</string>
+    </array>
 </dict>
 </plist>

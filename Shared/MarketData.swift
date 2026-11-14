@@ -101,6 +101,21 @@ enum MarketStore {
         return Calendar.current.date(byAdding: .day, value: n, to: Calendar.current.startOfDay(for: fromDate)) ?? fromDate
     }
 
+    /// Whether a market opens on this exact local calendar day.
+    /// This avoids scanning up to 40 days ahead when a widget only needs today through the day after tomorrow.
+    static func opens(on date: Date, market: Market) -> Bool {
+        switch market.repeatType {
+        case 6:
+            guard let phase = phase(ofBranches: market.branches) else { return false }
+            return dayPhase(date) == phase
+        case 1, 4:
+            let wanted = market.repeatValue.compactMap(lunarDayNumber)
+            return wanted.contains(lunarDay(date))
+        default:
+            return false
+        }
+    }
+
     static func upcoming(from date: Date, markets source: [Market]? = nil) -> [MarketDay] {
         let today = Calendar.current.startOfDay(for: date)
         return (source ?? load()).enumerated().compactMap { index, market -> (Int, MarketDay)? in
