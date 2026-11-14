@@ -44,6 +44,9 @@ struct WidgetFeed: Codable {
 
     static let appGroupID = "group.com.ganji.diary"
     static let storageKey = "GanJiWidgetFeedV1"
+    /// In-process invalidation only. Readers still load the persisted snapshot,
+    /// including when a write failed or a different storage channel won.
+    static let didChange = Notification.Name("GanJiWidgetFeedDidChange")
 
     static var sharedDefaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
@@ -113,6 +116,7 @@ enum WidgetFeedStore {
 
     @discardableResult
     static func write(_ feed: WidgetFeed) -> Report {
+        defer { NotificationCenter.default.post(name: WidgetFeed.didChange, object: nil) }
         var report = Report(ruleCount: feed.rules.count)
         guard let data = try? JSONEncoder().encode(feed) else {
             report.failure = "编码失败"

@@ -8,7 +8,10 @@ import WidgetKit
 /// Present with `.sheet { WidgetAppearanceView() }`.
 public struct WidgetAppearanceView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var editor = WidgetAppearanceEditor()
+    @StateObject private var snapshot = WidgetAppearanceSnapshot()
+    @State private var visible = false
     @State private var showingPicker = false
     @State private var confirmingReset = false
     private let accent = Color(red: 0.16, green: 0.39, blue: 0.32)
@@ -35,7 +38,7 @@ public struct WidgetAppearanceView: View {
                     .accessibilityIdentifier("widgetAppearance.size")
 
                     VStack(spacing: 12) {
-                        WidgetAppearancePreview(size: editor.size, image: editor.image,
+                        WidgetAppearancePreview(entry: snapshot.entry, size: editor.size, image: editor.image,
                                                 darkness: editor.darkness,
                                                 focalX: editor.focalX, focalY: editor.focalY)
                             .aspectRatio(editor.size.aspectRatio, contentMode: .fit)
@@ -46,7 +49,7 @@ public struct WidgetAppearanceView: View {
                             .frame(maxWidth: .infinity)
                             // Clipping does not limit SwiftUI hit testing for oversized images.
                             .allowsHitTesting(false)
-                        Text("真实布局 · 示例圩点")
+                        Text("与小组件相同的收藏圩日")
                             .font(.caption).foregroundColor(.secondary)
                     }
                     .padding(.vertical, 4)
@@ -124,7 +127,25 @@ public struct WidgetAppearanceView: View {
         }
         .navigationViewStyle(.stack)
         .interactiveDismissDisabled(editor.isPerformingOperation)
-        .onAppear { if !editor.loaded { editor.load() } }
+        .onAppear {
+            visible = true
+            if !editor.loaded { editor.load() }
+            snapshot.start()
+        }
+        .onDisappear {
+            visible = false
+            snapshot.stop()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active && visible { snapshot.start() }
+            else { snapshot.stop() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: WidgetFeed.didChange).receive(on: DispatchQueue.main)) { _ in
+            snapshot.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            snapshot.refresh()
+        }
         .sheet(isPresented: $showingPicker) {
             WidgetAppearancePhotoPicker(onCancel: { showingPicker = false }, onStart: {
                 editor.beginPhotoImport()
@@ -165,8 +186,9 @@ public struct WidgetAppearanceView: View {
     }
 }
 
-/// Deliberately uses sample text rather than loading live market/location data.
+/// Production board content over the editable photo crop; the snapshot is loaded separately.
 private struct WidgetAppearancePreview: View {
+    let entry: GanJiEntry?
     let size: WidgetPhotoSize
     let image: UIImage?
     let darkness: Double
@@ -205,17 +227,16 @@ private struct WidgetAppearancePreview: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(size.displayName)小组件背景预览，示例赶集日历")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(size.displayName)小组件背景预览，收藏圩日")
     }
 
     @ViewBuilder private var previewText: some View {
-        let entry = GanJiEntry.sample()
         Group {
-            switch size {
-            case .small: SealBoard(entry: entry)
-            case .medium: StripBoard(entry: entry)
-            case .large: AlmanacBoard(entry: entry)
+            if let entry = entry {
+                WidgetBoardContent(entry: entry, size: size)
+            } else {
+                ProgressView("正在读取收藏圩日…").tint(.white)
             }
         }.foregroundStyle(.white)
     }

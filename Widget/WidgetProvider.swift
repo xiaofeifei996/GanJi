@@ -19,7 +19,7 @@ struct GanJiEntry: TimelineEntry {
 
     var today: [MarketRule] { boards.first?.markets ?? [] }
 
-    /// 预览与占位用。只在时间线还没能读到真实数据时出现。
+    /// 仅供系统组件图库和占位使用；生产时间线与 App 外观预览不用示例。
     static func sample() -> GanJiEntry {
         let cal = Calendar.current
         let start = cal.startOfDay(for: Date())
@@ -54,7 +54,12 @@ struct GanJiProvider: TimelineProvider {
     }
 
     private func build(now: Date) -> GanJiEntry {
-        Self.timelineEntries(now: now, feed: WidgetFeed.current(), dayCount: 1)[0]
+        Self.entry(now: now, feed: WidgetFeed.current())
+    }
+
+    /// App 外观预览和生产快照共用同一入口；nil 不回退到示例收藏。
+    static func entry(now: Date, feed: WidgetFeed?, calendar: Calendar = .current) -> GanJiEntry {
+        timelineEntries(now: now, feed: feed, calendar: calendar, dayCount: 1)[0]
     }
 
     static func timelineEntries(now: Date, feed: WidgetFeed?,

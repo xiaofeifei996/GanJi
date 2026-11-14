@@ -11,20 +11,17 @@ struct WidgetRenderChecks {
         let rules = ["六陈圩", "平山圩", "麻垌圩"].enumerated().map {
             MarketRule(id: String($0.offset), name: $0.element, area: "平南", repeatType: 6, repeatValue: ["虎"])
         }
-        let boards = (0..<7).map { index in
-            DayBoard(date: Calendar.current.date(byAdding: .day, value: index, to: date)!,
-                     markets: index % 3 == 1 ? [] : rules)
-        }
-        let entry = GanJiEntry(date: date, boards: boards, synced: true, favoriteCount: rules.count)
-        for (name, width, height) in [("small", 158.0, 158.0), ("medium", 338.0, 158.0),
-                                       ("large", 338.0, 354.0)] {
-            let view = Group {
-                switch name {
-                case "small": SealBoard(entry: entry)
-                case "medium": StripBoard(entry: entry)
-                default: AlmanacBoard(entry: entry)
-                }
-            }
+        let scenarios: [(String, WidgetFeed?)] = [
+            ("favorites", WidgetFeed(source: WidgetFeed.favoriteSource, updatedAt: date, rules: rules)),
+            ("empty", WidgetFeed(source: WidgetFeed.favoriteSource, updatedAt: date, rules: [])),
+            ("unsynced", nil)
+        ]
+        for (scenario, feed) in scenarios {
+        let entry = GanJiProvider.entry(now: date, feed: feed)
+        for (size, width, height) in [(WidgetPhotoSize.small, 158.0, 158.0), (.medium, 338.0, 158.0),
+                                       (.large, 338.0, 354.0)] {
+            let name = scenario + "-" + size.rawValue
+            let view = WidgetBoardContent(entry: entry, size: size)
             .foregroundStyle(.white)
             .frame(width: width, height: height)
             .background(LinearGradient(colors: [Color(red: 0.16, green: 0.32, blue: 0.31),
@@ -38,6 +35,7 @@ struct WidgetRenderChecks {
             }
             try data.write(to: folder.appendingPathComponent(name + ".png"))
         }
-        print("SwiftUI widget renders completed")
+        }
+        print("SwiftUI widget renders completed: favorites, empty and unsynced in all three sizes")
     }
 }

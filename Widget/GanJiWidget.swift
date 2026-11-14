@@ -5,43 +5,16 @@ struct GanJiBoardView: View {
     let entry: GanJiEntry
     @Environment(\.widgetFamily) private var family
 
-    var body: some View {
-        Group {
-            if entry.boards.isEmpty || entry.favoriteCount == 0 {
-                EmptyBoard(entry: entry)
-            } else {
-                switch family {
-                case .systemSmall: SealBoard(entry: entry)
-                case .systemMedium: StripBoard(entry: entry)
-                default: AlmanacBoard(entry: entry)
-                }
-            }
+    private var size: WidgetPhotoSize {
+        switch family {
+        case .systemSmall: return .small
+        case .systemMedium: return .medium
+        default: return .large
         }
-        .photoWidget()
-    }
-}
-
-/// 空状态也展示已设置的照片背景。
-private struct EmptyBoard: View {
-    let entry: GanJiEntry
-
-    private var title: String { entry.synced ? "还没有收藏" : "尚未同步" }
-    private var detail: String {
-        entry.synced ? "点心形收藏圩点，开圩就会出现在这里"
-                     : "打开「赶集日记」选一次地区即可同步"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            WidgetIdentity()
-            Spacer(minLength: 8)
-            Image(systemName: "heart").font(.system(size: 24, weight: .light))
-            Text(title).font(.system(size: 17, weight: .semibold))
-            Text(detail).font(.system(size: 11, weight: .medium))
-                .opacity(0.8).lineLimit(3)
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        WidgetBoardContent(entry: entry, size: size).photoWidget()
     }
 }
 
