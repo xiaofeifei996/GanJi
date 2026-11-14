@@ -5,6 +5,22 @@ import SwiftUI
 //   中号 = 三栏（仿参考图中号：今天/明天/后天 各带棚icon+开圩签）
 //   大号 = 左日期区 + 右三栏（仿参考图大号的左右分区）
 
+private enum BoardText {
+    static func marketSummary(_ markets: [MarketRule]) -> String {
+        guard let first = markets.first else { return "" }
+        return markets.count > 1 ? "\(first.name)等\(markets.count)处" : first.name
+    }
+
+    static func accessibility(_ board: DayBoard?, date: Date, label: String) -> String {
+        let date = board?.date ?? date
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        let fullDate = "\(c.year ?? 0)年\(c.month ?? 1)月\(c.day ?? 1)日，\(LunarCalendar.weekdayText(date))"
+        guard let board else { return "\(label)，\(fullDate)，暂无圩日信息" }
+        let status = board.markets.isEmpty ? "休圩" : "开圩，" + board.markets.map(\.name).joined(separator: "、")
+        return "\(label)，\(fullDate)，\(status)"
+    }
+}
+
 // MARK: - 小号
 
 struct SealBoard: View {
@@ -106,7 +122,7 @@ struct StripBoard: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            dayColumn(entry.boards[0], label: "今天")
+            dayColumn(entry.boards.first, label: "今天")
             divider
             dayColumn(entry.boards.count > 1 ? entry.boards[1] : nil, label: "明天")
             divider
@@ -134,16 +150,7 @@ struct StripBoard: View {
     @ViewBuilder
     private func dayColumn(_ board: DayBoard?, label: String) -> some View {
         VStack(spacing: 5) {
-            Text(label)
-                .font(.system(size: 12, weight: .black))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 3.5)
-                .background(
-                    Capsule().fill(board?.markets.isEmpty == false
-                        ? Ink.green
-                        : Color(red: 0.45, green: 0.48, blue: 0.47))
-                )
+            GreenBadge(text: label, isOpen: board?.markets.isEmpty == false)
             if let board {
                 Text(shortDate(board.date))
                     .font(.system(size: 12, weight: .heavy))
@@ -154,12 +161,12 @@ struct StripBoard: View {
                     isOpen: !board.markets.isEmpty
                 )
                 if !board.markets.isEmpty {
-                    Text(board.markets.prefix(2).map(\.name).joined(separator: " "))
-                        .font(.system(size: 9, weight: .heavy))
+                    Text(BoardText.marketSummary(board.markets))
+                        .font(.system(size: 11, weight: .heavy))
                         .foregroundStyle(Ink.greenDeep)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, 6)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 3)
                 }
             } else {
                 Text("—")
@@ -168,6 +175,8 @@ struct StripBoard: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(BoardText.accessibility(board, date: entry.date, label: label))
     }
 
     private func shortDate(_ date: Date) -> String {
@@ -184,6 +193,12 @@ struct AlmanacBoard: View {
     private var today: [MarketRule] { entry.boards.first?.markets ?? [] }
 
     var body: some View {
+        GeometryReader { geometry in
+            layout(leftWidth: min(148, geometry.size.width * 0.34))
+        }
+    }
+
+    private func layout(leftWidth: CGFloat) -> some View {
         HStack(spacing: 0) {
             // 左：日期区（仿参考图：星期 + 大日期 + 云纹 + 今日卡 + 农历）
             VStack(spacing: 7) {
@@ -204,10 +219,11 @@ struct AlmanacBoard: View {
                 HStack(spacing: 6) {
                     StallIcon(size: 19, open: !today.isEmpty)
                     Text(today.isEmpty ? "今日休圩" : "今日开圩")
-                        .font(.system(size: 15, weight: .black))
+                        .font(.system(size: 13, weight: .black))
                         .foregroundStyle(today.isEmpty ? Ink.secondary : Ink.greenDeep)
+                        .lineLimit(1)
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 8)
                 .background(GlassCard(strong: true, radius: 16))
                 HStack(spacing: 5) {
@@ -231,7 +247,7 @@ struct AlmanacBoard: View {
                 }
                 Spacer(minLength: 0)
             }
-            .frame(width: 148)
+            .frame(width: leftWidth)
 
             // 中缝云纹分隔
             VStack(spacing: 2) {
@@ -245,7 +261,7 @@ struct AlmanacBoard: View {
                     .fill(Ink.secondary.opacity(0.5))
                     .frame(width: 1, height: 10)
             }
-            .frame(width: 15)
+            .frame(width: 8)
 
             // 右：未来三天赶集安排
             VStack(spacing: 6) {
@@ -263,7 +279,7 @@ struct AlmanacBoard: View {
                     )
 
                 HStack(spacing: 0) {
-                    planColumn(entry.boards[0], label: "今天")
+                    planColumn(entry.boards.first, label: "今天")
                     miniDivider
                     planColumn(entry.boards.count > 1 ? entry.boards[1] : nil, label: "明天")
                     miniDivider
@@ -272,8 +288,8 @@ struct AlmanacBoard: View {
                 .frame(maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity)
-            .padding(.leading, 6)
-            .padding(.trailing, 10)
+            .padding(.leading, 2)
+            .padding(.trailing, 6)
             .padding(.vertical, 10)
         }
         .padding(.vertical, 10)
@@ -294,9 +310,10 @@ struct AlmanacBoard: View {
                 .font(.system(size: 11, weight: .black))
                 .foregroundStyle(Ink.title)
             if let board {
-                Text(shortDate(board.date))
+                Text(board.date, format: .dateTime.month(.defaultDigits).day().locale(Locale(identifier: "zh_CN")))
                     .font(.system(size: 10, weight: .heavy))
                     .foregroundStyle(Ink.secondary)
+                    .lineLimit(1)
                 StallIcon(size: 19, open: !board.markets.isEmpty)
                 GreenBadge(
                     text: board.markets.isEmpty ? "不开圩" : "开圩",
@@ -304,16 +321,18 @@ struct AlmanacBoard: View {
                     size: 11
                 )
                 if !board.markets.isEmpty {
-                    Text(board.markets.first?.name ?? "")
-                        .font(.system(size: 8.5, weight: .heavy))
+                    Text(BoardText.marketSummary(board.markets))
+                        .font(.system(size: 10, weight: .heavy))
                         .foregroundStyle(Ink.greenDeep)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                        .padding(.horizontal, 4)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 2)
                 }
             }
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(BoardText.accessibility(board, date: entry.date, label: label))
     }
 
     private var dateText: String {

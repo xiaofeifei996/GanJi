@@ -47,29 +47,33 @@ struct GanJiProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GanJiEntry>) -> Void) {
         let now = Date()
-        let entry = build(now: now)
-        // 版面以「日」为单位变化，唯一必须刷新的时刻是跨过零点。
-        // 多留一分钟，避免正好卡在日界上取到前一天。
-        let midnight = Calendar.current.nextDate(
-            after: now,
-            matching: DateComponents(hour: 0, minute: 1),
-            matchingPolicy: .nextTime
-        ) ?? now.addingTimeInterval(3600)
-        completion(Timeline(entries: [entry], policy: .after(midnight)))
+        let entries = Self.timelineEntries(now: now, feed: WidgetFeed.current())
+        // 预交付未来零点的版面；系统无需在跨日时重新启动扩展来计算。
+        // 收藏变化仍由 App 主动 reload，最后一条显示后再申请下一批。
+        completion(Timeline(entries: entries, policy: .atEnd))
     }
 
     private func build(now: Date) -> GanJiEntry {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: now)
-        guard let feed = WidgetFeed.current() else {
-            return GanJiEntry(date: now, boards: [], synced: false, favoriteCount: 0)
+        Self.timelineEntries(now: now, feed: WidgetFeed.current(), dayCount: 1)[0]
+    }
+
+    static func timelineEntries(now: Date, feed: WidgetFeed?,
+                                calendar: Calendar = .current,
+                                dayCount: Int = 7) -> [GanJiEntry] {
+        let count = max(1, dayCount)
+        let start = calendar.startOfDay(for: now)
+        // 每张版面向后看七天。重叠日期只算一次，七张版面共算十三天。
+        let boards = (0..<(count + 6)).compactMap { offset -> DayBoard? in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
+            let markets = feed?.rules.filter { MarketSchedule.opens($0, on: day) } ?? []
+            return DayBoard(date: day, markets: markets)
         }
-        // 快照里只包含收藏的圩点，所以这里的 boards 天然只有收藏。
-        let boards = (0..<7).compactMap { offset -> DayBoard? in
-            guard let day = cal.date(byAdding: .day, value: offset, to: start) else { return nil }
-            return DayBoard(date: day, markets: feed.rules.filter { MarketSchedule.opens($0, on: day) })
+        return (0..<count).map { offset in
+            let date = offset == 0 ? now
+                : (calendar.date(byAdding: .day, value: offset, to: start) ?? now)
+            return GanJiEntry(date: date,
+                              boards: feed == nil ? [] : Array(boards.dropFirst(offset).prefix(7)),
+                              synced: feed != nil, favoriteCount: feed?.rules.count ?? 0)
         }
-        return GanJiEntry(date: now, boards: boards,
-                          synced: true, favoriteCount: feed.rules.count)
     }
 }

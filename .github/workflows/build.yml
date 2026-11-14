@@ -65,6 +65,13 @@ jobs:
           swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests
           /tmp/ganji-tests
 
+      - name: Verify widget feed fallback and daily timelines
+        run: |
+          swiftc Shared/LunarCalendar.swift Shared/WidgetFeed.swift Tests/WidgetFeedTests.swift -o /tmp/ganji-feed-tests
+          /tmp/ganji-feed-tests
+          swiftc Shared/LunarCalendar.swift Shared/WidgetFeed.swift Widget/WidgetProvider.swift Tests/WidgetTimelineTests.swift -o /tmp/ganji-timeline-tests
+          /tmp/ganji-timeline-tests
+
       - name: Generate project
         run: xcodegen generate
 
@@ -119,6 +126,7 @@ jobs:
           path: GanJi-unsigned.ipa
 
       - name: Publish nightly release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

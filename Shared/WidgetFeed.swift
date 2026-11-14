@@ -126,9 +126,9 @@ enum WidgetFeedStore {
             return report
         }
 
-        // 回读确认：写成功后立刻按扩展的读法再读一遍，
-        // 这样「写进去了但读不出来」不会被误判成成功。
-        report.verified = read() != nil
+        // 回读确认：扩展实际选中的快照必须与本次写入的字节完全一致，
+        // 不能把另一通道里仍然可读的旧快照误判为本次写入成功。
+        report.verified = verifiesWrite(data, candidates: readCandidates())
         if !report.verified {
             report.failure = "写入后回读失败"
         }
@@ -136,12 +136,38 @@ enum WidgetFeedStore {
     }
 
     static func read() -> Data? {
-        for url in targets {
-            if let data = try? Data(contentsOf: url), !data.isEmpty {
-                return data
-            }
+        selectCandidate(from: readCandidates())
+    }
+
+    /// 文件按 targets 顺序优先，defaults 最后；缺失或不可读的通道不参与选择。
+    private static func readCandidates() -> [Data] {
+        var candidates = targets.compactMap { try? Data(contentsOf: $0) }
+        if let data = WidgetFeed.sharedDefaults?.data(forKey: WidgetFeed.storageKey) {
+            candidates.append(data)
         }
-        return WidgetFeed.sharedDefaults?.data(forKey: WidgetFeed.storageKey)
+        return candidates
+    }
+
+    /// 纯选择逻辑：只接受有效收藏快照，选更新时间最新的一份。
+    /// 时间相同时保留输入顺序中的第一份，让通道优先级稳定且可测试。
+    static func selectCandidate(from candidates: [Data]) -> Data? {
+        let decoder = JSONDecoder()
+        var selected: Data?
+        var newest: Date?
+        for data in candidates {
+            guard let feed = try? decoder.decode(WidgetFeed.self, from: data),
+                  feed.source == WidgetFeed.favoriteSource,
+                  feed.updatedAt.timeIntervalSinceReferenceDate.isFinite else { continue }
+            if let newest, feed.updatedAt <= newest { continue }
+            selected = data
+            newest = feed.updatedAt
+        }
+        return selected
+    }
+
+    /// 用与读取相同的选择规则验证，避免旧快照或未被选中的副本造成假成功。
+    static func verifiesWrite(_ data: Data, candidates: [Data]) -> Bool {
+        selectCandidate(from: candidates) == data
     }
 }
 

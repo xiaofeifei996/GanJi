@@ -1,10 +1,10 @@
 import SwiftUI
+import WidgetKit
 
 /// 江南水墨风视觉层。
 ///
-/// 背景是真正的山水画图片（Widget/Assets.xcassets/InkSmall|Medium|Large），
-/// 通过 containerBackground(for: .widget) 声明——这正是 iOS 26 上背景消失问题的
-/// 正解：图片必须作为容器背景交给系统渲染，不能画在普通内容层里。
+/// 山水画作为 widget 容器背景；染色、透明等模式可由系统移除背景。
+/// 前景在这些模式降低卡片与标签底色的不透明度，保证独立可读。
 /// 半透明内容卡浮在画上，保证文字可读。
 enum Ink {
     static let title = Color(red: 0.13, green: 0.15, blue: 0.14)
@@ -36,11 +36,47 @@ struct WidgetSurface: View {
     }
 }
 
+private struct MutedWidgetSurfacesKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var mutedWidgetSurfaces: Bool {
+        get { self[MutedWidgetSurfacesKey.self] }
+        set { self[MutedWidgetSurfacesKey.self] = newValue }
+    }
+}
+
+@available(iOS 16.0, *)
+private struct RenderingAwareContent<Content: View>: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    let content: Content
+
+    var body: some View {
+        content.environment(\.mutedWidgetSurfaces, renderingMode != .fullColor)
+    }
+}
+
+@available(iOS 17.0, *)
+private struct BackgroundAwareContent<Content: View>: View {
+    @Environment(\.showsWidgetContainerBackground) private var showsBackground
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    let content: Content
+
+    var body: some View {
+        content.environment(\.mutedWidgetSurfaces,
+                            !showsBackground || renderingMode != .fullColor)
+    }
+}
+
 extension View {
     @ViewBuilder
     func paperWidget() -> some View {
         if #available(iOS 17.0, *) {
-            containerBackground(for: .widget) { WidgetSurface() }
+            BackgroundAwareContent(content: self)
+                .containerBackground(for: .widget) { WidgetSurface() }
+        } else if #available(iOS 16.0, *) {
+            RenderingAwareContent(content: self).background(WidgetSurface())
         } else {
             background(WidgetSurface())
         }
@@ -49,17 +85,20 @@ extension View {
 
 /// 磨砂白圆角卡：所有文字都放在这样的卡上，压得住画面。
 struct GlassCard: View {
+    @Environment(\.mutedWidgetSurfaces) private var muted
     var strong = false
     var radius: CGFloat = 12
 
     var body: some View {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .fill(strong ? Ink.glassStrong : Ink.glass)
+            .fill(muted ? Color.white.opacity(strong ? 0.16 : 0.09)
+                        : (strong ? Ink.glassStrong : Ink.glass))
     }
 }
 
 /// 绿色圆角签：参考图里「开圩/不开圩」的小绿牌。
 struct GreenBadge: View {
+    @Environment(\.mutedWidgetSurfaces) private var muted
     let text: String
     let isOpen: Bool
     var size: CGFloat = 12
@@ -67,11 +106,13 @@ struct GreenBadge: View {
     var body: some View {
         Text(text)
             .font(.system(size: size, weight: .heavy))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 9)
+            .foregroundStyle(muted ? Color.primary : .white)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
             .padding(.vertical, 3.5)
             .background(
-                Capsule().fill(isOpen ? Ink.green : Color(red: 0.52, green: 0.55, blue: 0.53))
+                Capsule().fill(muted ? Color.primary.opacity(0.16)
+                    : (isOpen ? Ink.green : Color(red: 0.36, green: 0.40, blue: 0.38)))
             )
     }
 }
@@ -137,14 +178,17 @@ private struct AwningShape: Shape {
 
 /// 「农」字小红印。
 struct SealMark: View {
+    @Environment(\.mutedWidgetSurfaces) private var muted
     var size: CGFloat = 13
 
     var body: some View {
         Text("农")
             .font(.system(size: size * 0.62, weight: .black))
-            .foregroundStyle(.white)
+            .foregroundStyle(muted ? Color.primary : .white)
             .frame(width: size, height: size)
-            .background(RoundedRectangle(cornerRadius: 3).fill(Ink.seal))
+            .background(RoundedRectangle(cornerRadius: 3)
+                .fill(muted ? Color.primary.opacity(0.16) : Ink.seal))
+            .accessibilityHidden(true)
     }
 }
 
