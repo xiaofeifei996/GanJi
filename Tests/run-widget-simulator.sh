@@ -7,6 +7,8 @@ xcrun simctl boot "$DEVICE" || true
 xcrun simctl bootstatus "$DEVICE" -b
 xcrun swiftc -sdk "$SDK" -target "$ARCH-apple-ios16.0-simulator" Shared/LunarCalendar.swift Shared/WidgetFeed.swift Shared/WidgetBackground.swift Tests/WidgetBackgroundTests.swift -o /tmp/widget-background-tests
 xcrun simctl spawn "$DEVICE" /tmp/widget-background-tests
+xcrun swiftc -sdk "$SDK" -target "$ARCH-apple-ios16.0-simulator" Shared/LunarCalendar.swift Shared/WidgetFeed.swift Shared/WidgetBackground.swift GanJi/WidgetAppearanceEditor.swift Tests/WidgetAppearanceEditorTests.swift -o /tmp/widget-appearance-editor-tests
+xcrun simctl spawn "$DEVICE" /tmp/widget-appearance-editor-tests
 xcrun swiftc -sdk "$SDK" -target "$ARCH-apple-ios16.0-simulator" Shared/LunarCalendar.swift Shared/WidgetFeed.swift Shared/WidgetBackground.swift Widget/WidgetProvider.swift Widget/WidgetLook.swift Widget/WidgetBoards.swift Tests/WidgetRenderChecks.swift -o /tmp/widget-render-checks
 mkdir -p "$PWD/widget-renders"
 xcrun simctl spawn "$DEVICE" /tmp/widget-render-checks "$PWD/widget-renders"

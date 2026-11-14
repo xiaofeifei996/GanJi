@@ -25,14 +25,14 @@ public struct WidgetAppearanceView: View {
                         Text("三种尺寸分别设置，只保存当前选中的尺寸。系统染色或透明外观可能隐藏照片，查看原图请使用全彩外观。")
                             .font(.footnote).foregroundColor(.secondary)
                     }
-                    Picker("小组件尺寸", selection: $editor.size) {
+                    Picker("小组件尺寸", selection: Binding(get: { editor.size }, set: { editor.select($0) })) {
                         ForEach(WidgetPhotoSize.allCases) { size in
                             Text(size.displayName).tag(size)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .disabled(editor.busy || showingPicker)
-                    .onChange(of: editor.size) { _ in editor.load() }
+                    .disabled(editor.isPerformingOperation || showingPicker || confirmingReset)
+                    .accessibilityIdentifier("widgetAppearance.size")
 
                     VStack(spacing: 12) {
                         WidgetAppearancePreview(size: editor.size, image: editor.image,
@@ -44,6 +44,8 @@ public struct WidgetAppearanceView: View {
                             .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(.white.opacity(0.4)))
                             .shadow(color: .black.opacity(0.09), radius: 12, y: 5)
                             .frame(maxWidth: .infinity)
+                            // Clipping does not limit SwiftUI hit testing for oversized images.
+                            .allowsHitTesting(false)
                         Text("真实布局 · 示例圩点")
                             .font(.caption).foregroundColor(.secondary)
                     }
@@ -115,13 +117,13 @@ public struct WidgetAppearanceView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }.disabled(editor.busy)
+                    Button("完成") { dismiss() }.disabled(editor.isPerformingOperation)
                 }
             }
             .tint(accent)
         }
         .navigationViewStyle(.stack)
-        .interactiveDismissDisabled(editor.busy)
+        .interactiveDismissDisabled(editor.isPerformingOperation)
         .onAppear { if !editor.loaded { editor.load() } }
         .sheet(isPresented: $showingPicker) {
             WidgetAppearancePhotoPicker(onCancel: { showingPicker = false }, onStart: {
@@ -160,134 +162,6 @@ public struct WidgetAppearanceView: View {
                 Text(trailing)
             }.font(.caption2).foregroundColor(.secondary)
         }
-    }
-}
-
-private final class WidgetAppearanceEditor: ObservableObject {
-    @Published var size: WidgetPhotoSize = .small
-    @Published var image: UIImage?
-    @Published var sourceData: Data?
-    @Published var adjustmentsExpanded = false
-    @Published var focalX = 0.5
-    @Published var focalY = 0.5
-    @Published var darkness = 0.25
-    @Published var busy = false
-    @Published var activity = "正在读取…"
-    @Published var status: String?
-    @Published var error: String?
-    var loaded = false
-
-    func load() {
-        guard !busy else { return }
-        begin("正在读取…")
-        let selectedSize = size
-        // Discard every transient edit when changing families, including imported data.
-        image = nil
-        sourceData = nil
-        focalX = 0.5
-        focalY = 0.5
-        adjustmentsExpanded = false
-        DispatchQueue.global(qos: .userInitiated).async {
-            let state = WidgetBackgroundStore.editorState(for: selectedSize)
-            DispatchQueue.main.async {
-                self.apply(state)
-                self.loaded = true
-                self.busy = false
-            }
-        }
-    }
-
-    func beginPhotoImport() { begin("正在导入照片…") }
-
-    func finishPhotoImport(_ result: Result<WidgetAppearancePhoto, Error>) {
-        busy = false
-        switch result {
-        case .success(let photo):
-            sourceData = photo.data
-            image = photo.preview
-            adjustmentsExpanded = true
-            focalX = 0.5
-            focalY = 0.5
-            status = "预览已更新，保存后才会用于当前尺寸。"
-        case .failure(let failure): error = failure.localizedDescription
-        }
-    }
-
-    func save() {
-        guard !busy, image != nil else { return }
-        let selectedSize = size
-        let original = sourceData
-        let dim = Self.clamped(darkness)
-        let x = focalX
-        let y = focalY
-        begin("正在保存…")
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                if let original = original {
-                    try WidgetBackgroundStore.save(imageData: original, for: selectedSize,
-                                                   darkness: dim, focalX: x, focalY: y)
-                } else {
-                    try WidgetBackgroundStore.updateDarkness(for: selectedSize, darkness: dim)
-                }
-                let state = WidgetBackgroundStore.editorState(for: selectedSize)
-                WidgetCenter.shared.reloadAllTimelines()
-                DispatchQueue.main.async {
-                    // Keep the current editable source if a subsequent read is temporarily unavailable.
-                    if state.image != nil { self.apply(state) }
-                    self.adjustmentsExpanded = false
-                    self.busy = false
-                    self.status = "已保存\(selectedSize.displayName)背景。点开「调整背景」可继续编辑；已请求刷新小组件，桌面显示可能稍有延迟。"
-                }
-            } catch { self.finishFailure(error) }
-        }
-    }
-
-    func reset() {
-        guard !busy else { return }
-        let selectedSize = size
-        begin("正在恢复…")
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                try WidgetBackgroundStore.reset(for: selectedSize)
-                let dim = WidgetBackgroundStore.darkness(for: selectedSize)
-                WidgetCenter.shared.reloadAllTimelines()
-                DispatchQueue.main.async {
-                    self.image = nil
-                    self.sourceData = nil
-                    self.focalX = 0.5
-                    self.focalY = 0.5
-                    self.darkness = Self.clamped(dim)
-                    self.busy = false
-                    self.status = "已恢复\(selectedSize.displayName)默认背景，并请求刷新。桌面显示可能稍有延迟。"
-                }
-            } catch { self.finishFailure(error) }
-        }
-    }
-
-    private func apply(_ state: WidgetBackgroundStore.EditorState) {
-        image = state.sourceImage ?? state.image
-        sourceData = state.sourceData
-        focalX = state.focalX
-        focalY = state.focalY
-        darkness = Self.clamped(state.darkness)
-    }
-
-    private func begin(_ label: String) {
-        busy = true
-        activity = label
-        status = nil
-        error = nil
-    }
-
-    private func finishFailure(_ failure: Error) {
-        DispatchQueue.main.async {
-            self.busy = false
-            self.error = failure.localizedDescription
-        }
-    }
-
-    private static func clamped(_ value: Double) -> Double {
-        value.isFinite ? min(1, max(0, value)) : 0.25
     }
 }
 
@@ -351,11 +225,6 @@ private struct WidgetAppearanceFailure: LocalizedError {
     let message: String
     init(_ message: String) { self.message = message }
     var errorDescription: String? { message }
-}
-
-private struct WidgetAppearancePhoto {
-    let data: Data
-    let preview: UIImage
 }
 
 private struct WidgetAppearancePhotoPicker: UIViewControllerRepresentable {
