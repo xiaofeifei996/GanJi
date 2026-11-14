@@ -72,6 +72,17 @@ jobs:
           swiftc Shared/LunarCalendar.swift Shared/WidgetFeed.swift Widget/WidgetProvider.swift Tests/WidgetTimelineTests.swift -o /tmp/ganji-timeline-tests
           /tmp/ganji-timeline-tests
 
+      - name: Verify background photos and render widget layouts
+        timeout-minutes: 12
+        run: bash Tests/run-widget-simulator.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Widget-layout-previews
+          path: widget-renders/*.png
+          if-no-files-found: ignore
+
       - name: Generate project
         run: xcodegen generate
 

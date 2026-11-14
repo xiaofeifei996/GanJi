@@ -6,8 +6,8 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    MARKETING_VERSION: "1.4.0"
-    CURRENT_PROJECT_VERSION: "49"
+    MARKETING_VERSION: "1.5.0"
+    CURRENT_PROJECT_VERSION: "50"
     SWIFT_VERSION: "5.0"
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGNING_REQUIRED: "NO"
@@ -21,6 +21,9 @@ targets:
     sources:
       - path: GanJi
       - path: Shared
+      - path: Widget/WidgetBoards.swift
+      - path: Widget/WidgetLook.swift
+      - path: Widget/WidgetProvider.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ganji.diary

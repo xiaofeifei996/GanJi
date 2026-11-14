@@ -17,11 +17,11 @@ struct GanJiBoardView: View {
                 }
             }
         }
-        .paperWidget()
+        .photoWidget()
     }
 }
 
-/// 空状态：同样浮在水墨画上，白卡说明。
+/// 空状态也展示已设置的照片背景。
 private struct EmptyBoard: View {
     let entry: GanJiEntry
 
@@ -32,26 +32,16 @@ private struct EmptyBoard: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Spacer(minLength: 0)
-            Text(title)
-                .font(.system(size: 14, weight: .heavy))
-                .foregroundStyle(Ink.title)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(GlassCard(strong: true, radius: 13))
-            Text(detail)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Ink.secondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(GlassCard(radius: 10))
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 8) {
+            WidgetIdentity()
+            Spacer(minLength: 8)
+            Image(systemName: "heart").font(.system(size: 24, weight: .light))
+            Text(title).font(.system(size: 17, weight: .semibold))
+            Text(detail).font(.system(size: 11, weight: .medium))
+                .opacity(0.8).lineLimit(3)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(14)
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 

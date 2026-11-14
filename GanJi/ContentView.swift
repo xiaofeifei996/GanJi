@@ -250,6 +250,8 @@ struct ContentView: View {
             }
             .sheet(item: $activeRootSheet) { sheet in
                 switch sheet {
+            case .widgetAppearance:
+                WidgetAppearanceView()
             case .date:
                 NavigationView {
                     VStack(spacing: 18) {
@@ -377,7 +379,7 @@ struct ContentView: View {
     }
 
     private enum RootSheet: String, Identifiable {
-        case date, region
+        case date, region, widgetAppearance
         var id: String { rawValue }
     }
 
@@ -417,6 +419,17 @@ struct ContentView: View {
                         .foregroundColor(Color(red: 0.43, green: 0.45, blue: 0.40))
                 }
                 Spacer(minLength: 0)
+                Button { activeRootSheet = .widgetAppearance } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: "rectangle.3.group.fill")
+                            .font(.system(size: 20, weight: .medium))
+                        Text("小组件").font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundColor(Color(red: 0.15, green: 0.34, blue: 0.30))
+                    .frame(width: 58, height: 58)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .accessibilityLabel("设置小组件背景图片")
             }
             .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 18)
 
