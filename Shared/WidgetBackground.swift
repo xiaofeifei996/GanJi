@@ -64,6 +64,19 @@ struct WidgetBackgroundStore {
         let deleted: Bool
         let darkness: Double
         let jpeg: Data?
+        // Additive v1 fields: older cropped-only records remain readable.
+        let sourceJPEG: Data?
+        let focalX: Double?
+        let focalY: Double?
+    }
+
+    struct EditorState {
+        let image: UIImage?
+        let sourceData: Data?
+        let sourceImage: UIImage?
+        let focalX: Double
+        let focalY: Double
+        let darkness: Double
     }
 
     private struct Candidate {
@@ -76,7 +89,10 @@ struct WidgetBackgroundStore {
     private static let defaultDarkness = 0.35
     private static let maxInputBytes = 50 * 1024 * 1024
     private static let maxJPEGBytes = 2 * 1024 * 1024
-    private static let maxRecordBytes = 3 * 1024 * 1024
+    private static let maxSourceBytes = 2 * 1024 * 1024
+    // Two 2 MiB JPEGs expand to <5.34 MiB in base64, leaving ample JSON overhead.
+    private static let maxRecordBytes = 6 * 1024 * 1024
+    private static let sourceEdge = 2400
     private static let outputEdge = 1200
     private static let futureTolerance: Double = 300
 
@@ -119,11 +135,51 @@ struct WidgetBackgroundStore {
             }
         }
 
+        func editorState(for size: WidgetPhotoSize) -> EditorState {
+            WidgetBackgroundStore.locked {
+                guard let candidate = WidgetBackgroundStore.newest(for: size, targets: targets(for: size), now: now()),
+                      !candidate.record.deleted else {
+                    return EditorState(image: nil, sourceData: nil, sourceImage: nil,
+                                       focalX: 0.5, focalY: 0.5, darkness: WidgetBackgroundStore.defaultDarkness)
+                }
+                let record = candidate.record
+                let source = record.sourceJPEG.flatMap { WidgetBackgroundStore.sourceImage($0) }
+                return EditorState(image: candidate.image, sourceData: source == nil ? nil : record.sourceJPEG,
+                                   sourceImage: source, focalX: source == nil ? 0.5 : record.focalX ?? 0.5,
+                                   focalY: source == nil ? 0.5 : record.focalY ?? 0.5, darkness: record.darkness)
+            }
+        }
+
         func save(imageData: Data, for size: WidgetPhotoSize, darkness: Double,
                   focalX: Double = 0.5, focalY: Double = 0.5) throws {
-            let jpeg = try WidgetBackgroundStore.preparedJPEG(imageData, for: size, focalX: focalX, focalY: focalY)
+            // Reuse the retained JPEG byte-for-byte on subsequent edits: no cumulative source loss.
+            let retained = WidgetBackgroundStore.locked {
+                WidgetBackgroundStore.newest(for: size, targets: targets(for: size), now: now())?.record.sourceJPEG
+            }
+            let source: Data
+            if retained == imageData {
+                source = imageData
+            } else {
+                source = try WidgetBackgroundStore.preparedSource(imageData)
+            }
+            let x = WidgetBackgroundStore.unit(focalX, fallback: 0.5)
+            let y = WidgetBackgroundStore.unit(focalY, fallback: 0.5)
+            let jpeg = try WidgetBackgroundStore.preparedJPEG(source, for: size, focalX: x, focalY: y)
             try WidgetBackgroundStore.locked {
-                try WidgetBackgroundStore.publish(jpeg: jpeg, for: size,
+                try WidgetBackgroundStore.publish(jpeg: jpeg, sourceJPEG: source, focalX: x, focalY: y, for: size,
+                    darkness: WidgetBackgroundStore.unit(darkness, fallback: WidgetBackgroundStore.defaultDarkness),
+                    targets: targets(for: size), now: now())
+            }
+        }
+
+        // Legacy photos have no recoverable outside pixels. Preserve their crop exactly,
+        // and never relabel it as an editable original when only changing darkness.
+        func updateDarkness(for size: WidgetPhotoSize, darkness: Double) throws {
+            try WidgetBackgroundStore.locked {
+                guard let record = WidgetBackgroundStore.newest(for: size, targets: targets(for: size), now: now())?.record,
+                      !record.deleted else { throw StoreError.invalidImage }
+                try WidgetBackgroundStore.publish(jpeg: record.jpeg, sourceJPEG: record.sourceJPEG,
+                    focalX: record.focalX, focalY: record.focalY, for: size,
                     darkness: WidgetBackgroundStore.unit(darkness, fallback: WidgetBackgroundStore.defaultDarkness),
                     targets: targets(for: size), now: now())
             }
@@ -145,6 +201,14 @@ struct WidgetBackgroundStore {
                      focalY: Double = 0.5) throws {
         try shared.save(imageData: imageData, for: size, darkness: darkness,
                         focalX: focalX, focalY: focalY)
+    }
+
+    static func editorState(for size: WidgetPhotoSize) -> EditorState {
+        shared.editorState(for: size)
+    }
+
+    static func updateDarkness(for size: WidgetPhotoSize, darkness: Double) throws {
+        try shared.updateDarkness(for: size, darkness: darkness)
     }
 
     /// 不删除文件：保留更新的墓碑，压住暂时不可写通道中的旧照片。
@@ -172,7 +236,8 @@ struct WidgetBackgroundStore {
         return Storage(directories: directories)
     }
 
-    private static func publish(jpeg: Data?, for size: WidgetPhotoSize,
+    private static func publish(jpeg: Data?, sourceJPEG: Data? = nil,
+                                focalX: Double? = nil, focalY: Double? = nil, for size: WidgetPhotoSize,
                                 darkness: Double, targets: [URL], now: Double) throws {
         let previous = newest(for: size, targets: targets, now: now)?.record.updatedAt ?? 0
         // 严格递增，支持同一时刻连续保存 / 重置及小幅系统时钟回拨。
@@ -181,7 +246,8 @@ struct WidgetBackgroundStore {
               timestamp <= now + futureTolerance else { throw StoreError.invalidClock }
         let record = Record(schema: 1, size: size.rawValue, revision: UUID(),
                             updatedAt: timestamp, deleted: jpeg == nil,
-                            darkness: darkness, jpeg: jpeg)
+                            darkness: darkness, jpeg: jpeg, sourceJPEG: sourceJPEG,
+                            focalX: focalX, focalY: focalY)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.withoutEscapingSlashes]
         let bytes = try encoder.encode(record)
@@ -247,8 +313,16 @@ struct WidgetBackgroundStore {
               record.updatedAt <= now + futureTolerance,
               record.darkness.isFinite, (0...1).contains(record.darkness) else { return nil }
         if record.deleted {
-            guard record.jpeg == nil else { return nil }
+            guard record.jpeg == nil, record.sourceJPEG == nil,
+                  record.focalX == nil, record.focalY == nil else { return nil }
             return Candidate(record: record, bytes: bytes, image: nil)
+        }
+        if let source = record.sourceJPEG {
+            guard boundedSource(source) != nil,
+                  let x = record.focalX, let y = record.focalY,
+                  x.isFinite, y.isFinite, (0...1).contains(x), (0...1).contains(y) else { return nil }
+        } else if record.focalX != nil || record.focalY != nil {
+            return nil
         }
         guard let data = record.jpeg, !data.isEmpty, data.count <= maxJPEGBytes,
               let source = CGImageSourceCreateWithData(data as CFData,
@@ -305,8 +379,7 @@ struct WidgetBackgroundStore {
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
-    private static func preparedJPEG(_ data: Data, for size: WidgetPhotoSize,
-                                     focalX: Double, focalY: Double) throws -> Data {
+    private static func preparedSource(_ data: Data) throws -> Data {
         guard !data.isEmpty else { throw StoreError.invalidImage }
         guard data.count <= maxInputBytes else { throw StoreError.imageTooLarge }
         guard let source = CGImageSourceCreateWithData(data as CFData,
@@ -324,18 +397,49 @@ struct WidgetBackgroundStore {
         try validateInputDimensions(width: dimensions.width, height: dimensions.height)
         let orientation = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
         guard (1...8).contains(orientation) else { throw StoreError.invalidImage }
-        let swapsAxes = (5...8).contains(orientation)
-        let width = swapsAxes ? dimensions.height : dimensions.width
-        let height = swapsAxes ? dimensions.width : dimensions.height
-        let target = outputSize(for: size)
-        let fillScale = max(Double(target.width) / width, Double(target.height) / height)
-        // 解码器先按 EXIF 旋正并降采样；极端长宽比也最多解码 2400 像素长边。
-        // 小图/细长图可能需要放大，但不会为填满裁剪框解码完整原图。
-        let maximum = Int(min(2400, max(1, ceil(max(width, height) * min(1, fillScale)))))
-        guard let decoded = thumbnail(source, maximum: maximum) else {
-            throw StoreError.invalidImage
-        }
+        guard let decoded = thumbnail(source, maximum: sourceEdge) else { throw StoreError.invalidImage }
         let image = UIImage(cgImage: decoded, scale: 1, orientation: .up)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        format.preferredRange = .standard
+        let normalized = UIGraphicsImageRenderer(size: image.size, format: format).image { context in
+            UIColor.black.setFill()
+            context.fill(CGRect(origin: .zero, size: image.size))
+            image.draw(at: .zero)
+        }
+        for quality: CGFloat in [0.88, 0.75, 0.6, 0.45, 0.3, 0.2] {
+            if let jpeg = normalized.jpegData(compressionQuality: quality), jpeg.count <= maxSourceBytes {
+                return jpeg
+            }
+        }
+        throw StoreError.encodingFailed
+    }
+
+    // Metadata validation avoids decoding a 2400px source in the widget process.
+    private static func boundedSource(_ data: Data) -> CGImageSource? {
+        guard !data.isEmpty, data.count <= maxSourceBytes, data.suffix(2) == Data([0xff, 0xd9]),
+              let source = CGImageSourceCreateWithData(data as CFData,
+                  [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetType(source) as String? == "public.jpeg",
+              CGImageSourceGetCount(source) == 1,
+              CGImageSourceGetStatus(source) == .statusComplete,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let dimensions = dimensions(properties),
+              dimensions.width <= Double(sourceEdge), dimensions.height <= Double(sourceEdge),
+              ((properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1) == 1 else { return nil }
+        return source
+    }
+
+    private static func sourceImage(_ data: Data) -> UIImage? {
+        guard let source = boundedSource(data), let decoded = thumbnail(source, maximum: sourceEdge) else { return nil }
+        return UIImage(cgImage: decoded, scale: 1, orientation: .up)
+    }
+
+    private static func preparedJPEG(_ data: Data, for size: WidgetPhotoSize,
+                                     focalX: Double, focalY: Double) throws -> Data {
+        guard let image = sourceImage(data) else { throw StoreError.invalidImage }
+        let target = outputSize(for: size)
         let scale = max(target.width / image.size.width, target.height / image.size.height)
         let drawn = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         let x = max(0, min(drawn.width - target.width,

@@ -40,6 +40,9 @@ import ImageIO
         var deleted = false
         var darkness = 0.2
         var jpeg: Data?
+        var sourceJPEG: Data?
+        var focalX: Double?
+        var focalY: Double?
     }
 
     static func fixture(width: Int = 900, height: Int = 300,
@@ -145,7 +148,72 @@ import ImageIO
         try invalidInputs(store, photo: photo, checks: c)
         try cropAndOrientation(store, photo: photo, checks: c)
         try selectionAndWrites(store, root: root, photo: photo, checks: c)
+        try editingRoundTrip(root: root, checks: c)
         print("WidgetBackgroundTests: \(c.count) checks passed")
+    }
+
+    static func editingRoundTrip(root: URL, checks c: Checks) throws {
+        let directories = [root.appendingPathComponent("editor-primary"), root.appendingPathComponent("editor-fallback")]
+        let store = Storage(directories: directories, now: { 2000 })
+        // Landscape and EXIF-rotated portrait both need to recover pixels outside the saved crop.
+        for (size, orientation) in [(WidgetPhotoSize.large, 1), (.medium, 6), (.small, 1)] {
+            try autoreleasepool {
+                try store.save(imageData: fixture(width: 3000, height: 1000, orientation: orientation),
+                               for: size, darkness: 0.63, focalX: 0, focalY: 0)
+                let reopened = Storage(directories: directories, now: { 2000 })
+                let state = reopened.editorState(for: size)
+                guard let source = state.sourceData, let image = state.sourceImage else {
+                    throw Failure(description: "Saved background lost its editable original")
+                }
+                try c.expect(state.focalX == 0 && state.focalY == 0 && state.darkness == 0.63,
+                             "Fresh reader must restore exact focus and darkness")
+                try c.expect(max(image.size.width, image.size.height) == 2400 && min(image.size.width, image.size.height) == 800,
+                             "Retained source must preserve the full photo, normalized and bounded to 2400px")
+                try c.expect(image.imageOrientation == .up && source.count <= 2 * 1024 * 1024,
+                             "Retained source orientation and byte budget")
+                try expectColor(state.image, channel: 0, "Initial saved crop is red", c)
+                try reopened.save(imageData: source, for: size, darkness: 0.17, focalX: 1, focalY: 1)
+                let edited = Storage(directories: directories, now: { 2000 }).editorState(for: size)
+                try c.expect(edited.sourceData == source, "Repeated edits must not recompress or crop the source")
+                try c.expect(edited.focalX == 1 && edited.focalY == 1 && edited.darkness == 0.17,
+                             "Re-edited parameters must persist")
+                try expectColor(edited.image, channel: 2, "Reopened edit recovers blue pixels outside old red crop", c)
+                let urls = store.targets(for: size)
+                let bytes = try Data(contentsOf: urls[0])
+                try c.expect(bytes.count <= 6 * 1024 * 1024 && bytes == Data(contentsOf: urls[1]),
+                             "Source, preview and parameters publish together within the record budget")
+            }
+        }
+        let urls = store.targets(for: .large)
+        let original = try JSONDecoder().decode(Envelope.self, from: Data(contentsOf: urls[0]))
+        var legacy = original
+        legacy.sourceJPEG = nil
+        legacy.focalX = nil
+        legacy.focalY = nil
+        for url in urls { try write(legacy, to: url) }
+        let state = store.editorState(for: .large)
+        try c.expect(state.image != nil && state.sourceData == nil && state.sourceImage == nil,
+                     "Legacy crop remains visible without claiming an editable original")
+        try store.updateDarkness(for: .large, darkness: 0.81)
+        let updated = try JSONDecoder().decode(Envelope.self, from: Data(contentsOf: urls[0]))
+        try c.expect(updated.jpeg == legacy.jpeg && updated.sourceJPEG == nil && updated.focalX == nil && updated.focalY == nil,
+                     "Legacy darkness update must preserve crop bytes and absent source")
+        try c.expect(store.editorState(for: .large).darkness == 0.81, "Legacy darkness persists after reopen")
+        try store.save(imageData: fixture(), for: .large, darkness: 0.2, focalX: 0.25, focalY: 0.75)
+        try c.expect(store.editorState(for: .large).sourceData != nil, "Reselect upgrades a legacy photo to editable storage")
+        let before = try Data(contentsOf: urls[0])
+        try c.rejects("Failed replacement keeps the original and parameters", matching: {
+            if case .invalidImage = $0 { return true }; return false
+        }) { try store.save(imageData: Data(), for: .large, darkness: 0) }
+        try c.expect(before == Data(contentsOf: urls[0]), "Failed replacement leaves the complete record unchanged")
+        try store.reset(for: .large)
+        let reset = store.editorState(for: .large)
+        try c.expect(reset.image == nil && reset.sourceData == nil && reset.sourceImage == nil,
+                     "Reset removes source and crop from fresh editor state")
+        let tombstone = try JSONDecoder().decode(Envelope.self, from: Data(contentsOf: urls[0]))
+        try c.expect(tombstone.sourceJPEG == nil && tombstone.focalX == nil && tombstone.focalY == nil,
+                     "Reset does not leave retained source bytes or focus on disk")
+        try c.expect(store.editorState(for: .medium).sourceData != nil, "Reset must preserve other sizes' editable originals")
     }
 
     static func invalidInputs(_ store: Storage, photo: Data, checks c: Checks) throws {
@@ -251,6 +319,9 @@ import ImageIO
 
         var tombstone = recent
         tombstone.jpeg = nil
+        tombstone.sourceJPEG = nil
+        tombstone.focalX = nil
+        tombstone.focalY = nil
         tombstone.deleted = true
         tombstone.updatedAt = 950
         for tombstoneIndex in [0, 1] {
@@ -282,6 +353,11 @@ import ImageIO
             invalidRecords.append(record)
         }
         bad { $0.schema = 2 }
+        bad { $0.sourceJPEG = Data("broken source".utf8) }
+        bad { $0.sourceJPEG = Data(repeating: 0, count: 2 * 1024 * 1024 + 1) }
+        bad { $0.focalX = nil }
+        bad { $0.focalY = 1.1 }
+        bad { $0.sourceJPEG = nil }
         bad { $0.size = "medium" }
         bad { $0.updatedAt = -1 }
         bad { $0.updatedAt = 1301 }
@@ -306,7 +382,7 @@ import ImageIO
             }
         }
         for bytes in [Data(), Data("{truncated".utf8), Data("{}".utf8),
-                      Data(repeating: 32, count: 3 * 1024 * 1024 + 1)] {
+                      Data(repeating: 32, count: 6 * 1024 * 1024 + 1)] {
             try bytes.write(to: urls[0], options: .atomic)
             try c.expect(store.appearance(for: .small).darkness == 0.8,
                          "Empty, malformed, missing-field and oversized records must fall back")

@@ -58,16 +58,22 @@ public struct WidgetAppearanceView: View {
                         .disabled(editor.busy)
                         if editor.image != nil {
                             Divider()
-                            if editor.sourceData != nil {
-                                adjustment("水平取景", value: $editor.focalX, leading: "偏左", trailing: "偏右")
-                                adjustment("垂直取景", value: $editor.focalY, leading: "偏上", trailing: "偏下")
-                                Text("照片自动铺满画面；某个方向没有多余画面时，调整该方向不会移动。")
-                                    .font(.caption).foregroundColor(.secondary)
-                            } else {
-                                Text("已保留保存时的构图。重新选择照片后，可调整取景位置。")
-                                    .font(.caption).foregroundColor(.secondary)
+                            DisclosureGroup("调整背景", isExpanded: $editor.adjustmentsExpanded) {
+                                VStack(alignment: .leading, spacing: 18) {
+                                    if editor.sourceData != nil {
+                                        adjustment("水平取景", value: $editor.focalX, leading: "偏左", trailing: "偏右")
+                                        adjustment("垂直取景", value: $editor.focalY, leading: "偏上", trailing: "偏下")
+                                        Text("照片自动铺满画面；某个方向没有多余画面时，调整该方向不会移动。保存后可再次展开调整，重新打开页面也会保留取景参数。")
+                                            .font(.caption).foregroundColor(.secondary)
+                                    } else {
+                                        Text("这张旧版背景只保存了裁剪图，仍可调整压暗。若要改变取景，请重新选择原照片；原先裁掉的画面无法恢复。")
+                                            .font(.caption).foregroundColor(.secondary)
+                                    }
+                                    adjustment("背景压暗", value: $editor.darkness, leading: "原图", trailing: "更暗")
+                                }
+                                .padding(.top, 14)
                             }
-                            adjustment("背景压暗", value: $editor.darkness, leading: "原图", trailing: "更暗")
+                            .font(.body.weight(.semibold))
                         } else {
                             Text("当前使用默认背景。选择一张照片，让文字与风景相伴。")
                                 .font(.footnote).foregroundColor(.secondary)
@@ -161,6 +167,7 @@ private final class WidgetAppearanceEditor: ObservableObject {
     @Published var size: WidgetPhotoSize = .small
     @Published var image: UIImage?
     @Published var sourceData: Data?
+    @Published var adjustmentsExpanded = false
     @Published var focalX = 0.5
     @Published var focalY = 0.5
     @Published var darkness = 0.25
@@ -179,12 +186,11 @@ private final class WidgetAppearanceEditor: ObservableObject {
         sourceData = nil
         focalX = 0.5
         focalY = 0.5
+        adjustmentsExpanded = false
         DispatchQueue.global(qos: .userInitiated).async {
-            let storedImage = WidgetBackgroundStore.image(for: selectedSize)
-            let storedDarkness = WidgetBackgroundStore.darkness(for: selectedSize)
+            let state = WidgetBackgroundStore.editorState(for: selectedSize)
             DispatchQueue.main.async {
-                self.image = storedImage
-                self.darkness = Self.clamped(storedDarkness)
+                self.apply(state)
                 self.loaded = true
                 self.busy = false
             }
@@ -199,6 +205,7 @@ private final class WidgetAppearanceEditor: ObservableObject {
         case .success(let photo):
             sourceData = photo.data
             image = photo.preview
+            adjustmentsExpanded = true
             focalX = 0.5
             focalY = 0.5
             status = "预览已更新，保存后才会用于当前尺寸。"
@@ -207,32 +214,29 @@ private final class WidgetAppearanceEditor: ObservableObject {
     }
 
     func save() {
-        guard !busy, let preview = image else { return }
+        guard !busy, image != nil else { return }
         let selectedSize = size
         let original = sourceData
         let dim = Self.clamped(darkness)
-        // Stored images are already cropped. A darkness-only save uses the same
-        // aspect ratio and centered focal point, never the old source coordinates.
-        let x = original == nil ? 0.5 : focalX
-        let y = original == nil ? 0.5 : focalY
+        let x = focalX
+        let y = focalY
         begin("正在保存…")
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                guard let data = original ?? preview.jpegData(compressionQuality: 0.95) else {
-                    throw WidgetAppearanceFailure("无法处理这张照片，请重新选择。")
+                if let original = original {
+                    try WidgetBackgroundStore.save(imageData: original, for: selectedSize,
+                                                   darkness: dim, focalX: x, focalY: y)
+                } else {
+                    try WidgetBackgroundStore.updateDarkness(for: selectedSize, darkness: dim)
                 }
-                try WidgetBackgroundStore.save(imageData: data, for: selectedSize, darkness: dim, focalX: x, focalY: y)
-                let savedImage = WidgetBackgroundStore.image(for: selectedSize)
+                let state = WidgetBackgroundStore.editorState(for: selectedSize)
                 WidgetCenter.shared.reloadAllTimelines()
                 DispatchQueue.main.async {
-                    self.image = savedImage ?? preview
-                    // If read-back is temporarily unavailable, keep the original
-                    // source and focal point instead of treating it as a saved crop.
-                    self.sourceData = savedImage == nil ? original : nil
-                    self.focalX = savedImage == nil ? x : 0.5
-                    self.focalY = savedImage == nil ? y : 0.5
+                    // Keep the current editable source if a subsequent read is temporarily unavailable.
+                    if state.image != nil { self.apply(state) }
+                    self.adjustmentsExpanded = false
                     self.busy = false
-                    self.status = "已保存\(selectedSize.displayName)背景，并请求刷新小组件。桌面显示可能稍有延迟。"
+                    self.status = "已保存\(selectedSize.displayName)背景。点开「调整背景」可继续编辑；已请求刷新小组件，桌面显示可能稍有延迟。"
                 }
             } catch { self.finishFailure(error) }
         }
@@ -258,6 +262,14 @@ private final class WidgetAppearanceEditor: ObservableObject {
                 }
             } catch { self.finishFailure(error) }
         }
+    }
+
+    private func apply(_ state: WidgetBackgroundStore.EditorState) {
+        image = state.sourceImage ?? state.image
+        sourceData = state.sourceData
+        focalX = state.focalX
+        focalY = state.focalY
+        darkness = Self.clamped(state.darkness)
     }
 
     private func begin(_ label: String) {
