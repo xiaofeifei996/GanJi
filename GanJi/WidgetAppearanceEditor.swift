@@ -8,6 +8,7 @@ final class WidgetAppearanceEditor: ObservableObject {
     enum Operation { case importing, saving, resetting }
 
     struct Dependencies {
+        var sharingIssue: () -> String? = { WidgetSharedStorage.sharingIssue }
         var read: (WidgetPhotoSize) -> WidgetBackgroundStore.EditorState = WidgetBackgroundStore.editorState
         var save: (Data, WidgetPhotoSize, Double, Double, Double) throws -> Void = {
             try WidgetBackgroundStore.save(imageData: $0, for: $1, darkness: $2, focalX: $3, focalY: $4)
@@ -32,6 +33,7 @@ final class WidgetAppearanceEditor: ObservableObject {
     @Published private(set) var operation: Operation?
     @Published var status: String?
     @Published var error: String?
+    @Published private(set) var sharingIssue: String?
     private(set) var loaded = false
     private let dependencies: Dependencies
     private var loadID = UUID()
@@ -75,12 +77,15 @@ final class WidgetAppearanceEditor: ObservableObject {
         darkness = 0.35
         adjustmentsExpanded = false
         let read = dependencies.read
+        let diagnose = dependencies.sharingIssue
         let work = DispatchWorkItem { [weak self] in
             let state = autoreleasepool { read(selectedSize) }
+            let issue = diagnose()
             DispatchQueue.main.async { [weak self] in
                 guard let self = self, self.loadID == request, self.size == selectedSize,
                       !self.isPerformingOperation else { return }
                 self.apply(state)
+                self.sharingIssue = issue
                 self.loaded = true
                 self.loading = false
                 self.loadWork = nil

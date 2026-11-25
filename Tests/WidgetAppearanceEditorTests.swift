@@ -34,6 +34,8 @@ import UIKit
         var writes: [(WidgetPhotoSize, Data?, Double, Double, Double)] = []
         var resets: [WidgetPhotoSize] = []
         var failWrite = false
+        var reloadCount = 0
+        var sharingIssue: String?
         var readsOffMain = true
         var beforeRead: ((WidgetPhotoSize) -> Void)?
 
@@ -57,7 +59,8 @@ import UIKit
                 self.resets.append(size)
                 self.backgrounds[size] = state(size, empty: true)
             }
-            io.reload = {}
+            io.sharingIssue = { self.sharingIssue }
+            io.reload = { self.reloadCount += 1 }
             io.enqueue = { self.jobs.append($0) }
             return io
         }
@@ -75,6 +78,7 @@ import UIKit
         latestWins()
         discardAndGateWrites()
         failuresUnlock()
+        signingFailurePreservesEdits()
         print("WidgetAppearanceEditorTests: \(checks) checks passed")
     }
 
@@ -161,6 +165,24 @@ import UIKit
                "Reset did not clear only selected family")
         editor.select(.large); io.run(6); drainMain()
         expect(editor.darkness == 0.8 && editor.sourceData == Data("large".utf8), "Other family was modified")
+    }
+
+    static func signingFailurePreservesEdits() {
+        let io = IO()
+        io.sharingIssue = "共享组未授权"
+        let editor = WidgetAppearanceEditor(dependencies: io.dependencies())
+        editor.load(); io.run(0); drainMain()
+        expect(editor.sharingIssue == "共享组未授权", "Missing signing notice")
+        editor.focalX = 0.21; editor.focalY = 0.73; editor.darkness = 0.62
+        io.failWrite = true
+        editor.save(); io.run(1); drainMain()
+        expect(editor.status == nil && io.reloadCount == 0, "Failed sync must not report success or request reload")
+        expect(editor.sourceData == Data("small".utf8) && editor.focalX == 0.21
+               && editor.focalY == 0.73 && editor.darkness == 0.62, "Permission failure discarded edits")
+        io.failWrite = false
+        editor.save(); io.run(2); drainMain()
+        expect(editor.error == nil && editor.status != nil && io.reloadCount == 1,
+               "Retry should publish and reload exactly once")
     }
 
     static func failuresUnlock() {

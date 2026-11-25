@@ -48,8 +48,8 @@ struct WidgetBackgroundStore {
                 return "背景图片压缩失败，请尝试其他照片。"
             case .invalidClock:
                 return "设备时间异常，无法更新小组件背景。"
-            case .sharedWriteFailed(let failures):
-                return "无法保存到共享目录，小组件背景未同步。" + failures.joined(separator: "；")
+            case .sharedWriteFailed:
+                return "未能写入 App 与小组件的共享目录，背景未保存、未同步。当前照片和取景仍保留在本页，可稍后重试。" + WidgetSharedStorage.signingHelp
             case .verificationFailed:
                 return "背景已尝试写入，但回读的最新版本不一致，请重试。"
             }
@@ -227,13 +227,7 @@ struct WidgetBackgroundStore {
     }
 
     private static var shared: Storage {
-        var directories: [URL] = []
-        if let container = WidgetFeedStore.containerURL {
-            directories.append(container)
-        }
-        directories.append(URL(fileURLWithPath: WidgetFeedStore.fallbackDirectory,
-                               isDirectory: true))
-        return Storage(directories: directories)
+        Storage(directories: WidgetSharedStorage.directories)
     }
 
     private static func publish(jpeg: Data?, sourceJPEG: Data? = nil,

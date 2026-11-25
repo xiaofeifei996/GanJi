@@ -42,14 +42,16 @@ struct WidgetFeed: Codable {
     var updatedAt: Date
     var rules: [MarketRule]
 
-    static let appGroupID = "group.com.ganji.diary"
+    static let appGroupID = WidgetSharedStorage.defaultGroupID
     static let storageKey = "GanJiWidgetFeedV1"
     /// In-process invalidation only. Readers still load the persisted snapshot,
     /// including when a write failed or a different storage channel won.
     static let didChange = Notification.Name("GanJiWidgetFeedDidChange")
 
     static var sharedDefaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupID)
+        // Without a real container a suite can be app-private. Never count it as sync.
+        guard let group = WidgetSharedStorage.container else { return nil }
+        return UserDefaults(suiteName: group.id)
     }
 
     func publish() {
@@ -83,20 +85,15 @@ enum WidgetFeedStore {
     static let fileName = "WidgetFeed.json"
 
     /// 沙盒外兜底目录。已写入 App 与扩展的 entitlements 例外清单。
-    static let fallbackDirectory = "/var/mobile/Library/GanJi"
+    static let fallbackDirectory = WidgetSharedStorage.legacyDirectory
 
     static var containerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: WidgetFeed.appGroupID)
+        WidgetSharedStorage.container?.url
     }
 
     /// 按优先级排列的读写位置。
     static var targets: [URL] {
-        var urls = [URL]()
-        if let container = containerURL {
-            urls.append(container.appendingPathComponent(fileName))
-        }
-        urls.append(URL(fileURLWithPath: fallbackDirectory).appendingPathComponent(fileName))
-        return urls
+        WidgetSharedStorage.directories.map { $0.appendingPathComponent(fileName) }
     }
 
     struct Report {
@@ -135,7 +132,7 @@ enum WidgetFeedStore {
         WidgetFeed.sharedDefaults?.set(data, forKey: WidgetFeed.storageKey)
 
         if report.written.isEmpty {
-            report.failure = "所有路径均不可写"
+            report.failure = "没有可写的跨进程共享目录。" + WidgetSharedStorage.signingHelp
             return report
         }
 

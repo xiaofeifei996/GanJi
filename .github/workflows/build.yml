@@ -65,11 +65,17 @@ jobs:
           swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests
           /tmp/ganji-tests
 
+      - name: Verify shared groups and signing preflight
+        run: |
+          swiftc Shared/WidgetSharedStorage.swift Tests/WidgetSharedStorageTests.swift -o /tmp/ganji-storage-tests
+          /tmp/ganji-storage-tests
+          python3 -m unittest discover -s Tests -p 'test_widget_signing.py' -v
+
       - name: Verify widget feed fallback and daily timelines
         run: |
-          swiftc Shared/LunarCalendar.swift Shared/WidgetFeed.swift Tests/WidgetFeedTests.swift -o /tmp/ganji-feed-tests
+          swiftc Shared/LunarCalendar.swift Shared/WidgetSharedStorage.swift Shared/WidgetFeed.swift Tests/WidgetFeedTests.swift -o /tmp/ganji-feed-tests
           /tmp/ganji-feed-tests
-          swiftc Shared/LunarCalendar.swift Shared/WidgetFeed.swift Widget/WidgetProvider.swift Tests/WidgetTimelineTests.swift -o /tmp/ganji-timeline-tests
+          swiftc Shared/LunarCalendar.swift Shared/WidgetSharedStorage.swift Shared/WidgetFeed.swift Widget/WidgetProvider.swift Tests/WidgetTimelineTests.swift -o /tmp/ganji-timeline-tests
           /tmp/ganji-timeline-tests
 
       - name: Verify background photos and render widget layouts
@@ -118,6 +124,9 @@ jobs:
           # Then the containing app, once all nested code is final.
           codesign --force --sign - --timestamp=none --entitlements GanJi/GanJi.entitlements "$APP"
           codesign -d --entitlements :- "$APP" 2>&1
+
+      - name: Check packaged widget signing (ad-hoc build only)
+        run: python3 Tools/check_widget_signing.py build/Build/Products/Release-iphoneos/GanJi.app --allow-unprovisioned
 
       - name: Package IPA
         run: |

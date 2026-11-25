@@ -28,6 +28,11 @@ public struct WidgetAppearanceView: View {
                         Text("三种尺寸分别设置，只保存当前选中的尺寸。系统染色或透明外观可能隐藏照片，查看原图请使用全彩外观。")
                             .font(.footnote).foregroundColor(.secondary)
                     }
+                    if let issue = editor.sharingIssue {
+                        Label(issue, systemImage: "exclamationmark.triangle")
+                            .font(.footnote).foregroundColor(.secondary)
+                            .accessibilityIdentifier("widgetAppearance.sharingIssue")
+                    }
                     Picker("小组件尺寸", selection: Binding(get: { editor.size }, set: { editor.select($0) })) {
                         ForEach(WidgetPhotoSize.allCases) { size in
                             Text(size.displayName).tag(size)
