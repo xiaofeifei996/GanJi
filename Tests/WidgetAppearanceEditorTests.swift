@@ -37,6 +37,7 @@ import UIKit
         var reloadCount = 0
         var sharingIssue: String?
         var readsOffMain = true
+        var diagnosticsOffMain = true
         var beforeRead: ((WidgetPhotoSize) -> Void)?
 
         func dependencies() -> WidgetAppearanceEditor.Dependencies {
@@ -59,7 +60,10 @@ import UIKit
                 self.resets.append(size)
                 self.backgrounds[size] = state(size, empty: true)
             }
-            io.sharingIssue = { self.sharingIssue }
+            io.sharingIssue = {
+                self.diagnosticsOffMain = self.diagnosticsOffMain && !Thread.isMainThread
+                return self.sharingIssue
+            }
             io.reload = { self.reloadCount += 1 }
             io.enqueue = { self.jobs.append($0) }
             return io
@@ -79,6 +83,7 @@ import UIKit
         discardAndGateWrites()
         failuresUnlock()
         signingFailurePreservesEdits()
+        sharingStatusRefreshesOffMain()
         print("WidgetAppearanceEditorTests: \(checks) checks passed")
     }
 
@@ -183,6 +188,33 @@ import UIKit
         editor.save(); io.run(2); drainMain()
         expect(editor.error == nil && editor.status != nil && io.reloadCount == 1,
                "Retry should publish and reload exactly once")
+    }
+
+    static func sharingStatusRefreshesOffMain() {
+        let io = IO()
+        io.sharingIssue = "共享组暂不可用"
+        let editor = WidgetAppearanceEditor(dependencies: io.dependencies())
+        editor.refreshSharingIssue()
+        expect(io.jobs.isEmpty, "A refresh before initial load should be ignored")
+        editor.load(); io.run(0); drainMain()
+        expect(editor.sharingChecked && editor.sharingIssue == "共享组暂不可用",
+               "Initial load did not publish the storage diagnosis")
+
+        io.sharingIssue = nil
+        editor.refreshSharingIssue()
+        expect(editor.checkingSharing && io.jobs.count == 2, "Refresh did not start asynchronously")
+        editor.refreshSharingIssue()
+        expect(io.jobs.count == 2, "Duplicate checks should be coalesced")
+        io.run(1); drainMain()
+        expect(editor.sharingChecked && !editor.checkingSharing && editor.sharingIssue == nil,
+               "A recovered shared route did not clear the stale warning")
+        expect(io.diagnosticsOffMain, "Storage diagnosis ran on the main thread")
+
+        expect(editor.beginPhotoImport(), "Import should begin for operation lock test")
+        let count = io.jobs.count
+        editor.refreshSharingIssue()
+        expect(io.jobs.count == count, "Status refresh must not overlap an editor operation")
+        editor.finishPhotoImport(.failure(NSError(domain: "test", code: 4)))
     }
 
     static func failuresUnlock() {

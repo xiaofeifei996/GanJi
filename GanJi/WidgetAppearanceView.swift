@@ -28,11 +28,39 @@ public struct WidgetAppearanceView: View {
                         Text("三种尺寸分别设置，只保存当前选中的尺寸。系统染色或透明外观可能隐藏照片，查看原图请使用全彩外观。")
                             .font(.footnote).foregroundColor(.secondary)
                     }
-                    if let issue = editor.sharingIssue {
-                        Label(issue, systemImage: "exclamationmark.triangle")
-                            .font(.footnote).foregroundColor(.secondary)
-                            .accessibilityIdentifier("widgetAppearance.sharingIssue")
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            if !editor.sharingChecked || editor.checkingSharing {
+                                ProgressView().controlSize(.small)
+                            }
+                            Label(
+                                !editor.sharingChecked || editor.checkingSharing ? "正在检查共享目录…" :
+                                    (editor.sharingIssue == nil ? "检测到共享目录" : "共享目录不可用"),
+                                systemImage: !editor.sharingChecked || editor.checkingSharing ? "icloud" :
+                                    (editor.sharingIssue == nil ? "checkmark.icloud" : "exclamationmark.icloud")
+                            )
+                            .font(.footnote.weight(.medium))
+                            .foregroundColor(editor.sharingIssue == nil ? .secondary : .orange)
+                            .accessibilityIdentifier("widgetAppearance.sharingStatus")
+                            Spacer(minLength: 4)
+                            Button {
+                                editor.refreshSharingIssue()
+                            } label: {
+                                Text(editor.checkingSharing ? "检查中" : "重新检查")
+                                    .font(.footnote.weight(.medium))
+                            }
+                            .disabled(!editor.sharingChecked || editor.checkingSharing || editor.busy)
+                        }
+                        if let issue = editor.sharingIssue {
+                            Text(issue)
+                                .font(.footnote).foregroundColor(.secondary)
+                                .accessibilityIdentifier("widgetAppearance.sharingIssue")
+                        }
+                        Text("保存时会再进行实际写入与回读验证；检测到目录不代表桌面组件已完成刷新。")
+                            .font(.caption).foregroundColor(.secondary)
                     }
+                    .padding(12)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
                     Picker("小组件尺寸", selection: Binding(get: { editor.size }, set: { editor.select($0) })) {
                         ForEach(WidgetPhotoSize.allCases) { size in
                             Text(size.displayName).tag(size)
@@ -142,8 +170,10 @@ public struct WidgetAppearanceView: View {
             snapshot.stop()
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active && visible { snapshot.start() }
-            else { snapshot.stop() }
+            if phase == .active && visible {
+                snapshot.start()
+                editor.refreshSharingIssue()
+            } else { snapshot.stop() }
         }
         .onReceive(NotificationCenter.default.publisher(for: WidgetFeed.didChange).receive(on: DispatchQueue.main)) { _ in
             snapshot.refresh()

@@ -34,9 +34,12 @@ final class WidgetAppearanceEditor: ObservableObject {
     @Published var status: String?
     @Published var error: String?
     @Published private(set) var sharingIssue: String?
+    @Published private(set) var sharingChecked = false
+    @Published private(set) var checkingSharing = false
     private(set) var loaded = false
     private let dependencies: Dependencies
     private var loadID = UUID()
+    private var sharingRequestID = UUID()
     private var loadWork: DispatchWorkItem?
 
     init(dependencies: Dependencies = Dependencies()) { self.dependencies = dependencies }
@@ -63,6 +66,9 @@ final class WidgetAppearanceEditor: ObservableObject {
     func load() {
         guard !isPerformingOperation else { return }
         loadWork?.cancel()
+        sharingRequestID = UUID()
+        checkingSharing = false
+        sharingChecked = false
         let request = UUID()
         loadID = request
         let selectedSize = size
@@ -86,6 +92,7 @@ final class WidgetAppearanceEditor: ObservableObject {
                       !self.isPerformingOperation else { return }
                 self.apply(state)
                 self.sharingIssue = issue
+                self.sharingChecked = true
                 self.loaded = true
                 self.loading = false
                 self.loadWork = nil
@@ -93,6 +100,26 @@ final class WidgetAppearanceEditor: ObservableObject {
         }
         loadWork = work
         dependencies.enqueue(work)
+    }
+
+    /// Recheck only the real shared-storage route, off the main thread. A folder
+    /// being present is not reported as a successful sync; save still performs
+    /// its own write/read-back verification before showing success.
+    func refreshSharingIssue() {
+        guard loaded, !loading, !isPerformingOperation, !checkingSharing else { return }
+        let request = UUID()
+        sharingRequestID = request
+        checkingSharing = true
+        let diagnose = dependencies.sharingIssue
+        dependencies.enqueue(DispatchWorkItem { [weak self] in
+            let issue = diagnose()
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.sharingRequestID == request else { return }
+                self.sharingIssue = issue
+                self.sharingChecked = true
+                self.checkingSharing = false
+            }
+        })
     }
 
     @discardableResult func beginPhotoImport() -> Bool {
